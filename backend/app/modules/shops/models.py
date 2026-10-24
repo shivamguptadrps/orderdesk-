@@ -38,3 +38,5 @@ class DistributorShop(UUIDPk, Timestamps, Base):
     status: Mapped[str] = mapped_column(String(20), default="pending", server_default="pending")
     agent_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     joined_via_code: Mapped[str | None] = mapped_column(String(12))
+    # Agent (or staff) who signed this shop up, if it didn't join by code itself
+    added_by_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

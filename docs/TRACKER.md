@@ -20,7 +20,7 @@
 | M1 Accounts, distributors, shops | Backend done | 24 Oct 2026 | |
 | M2 Catalog, features, pack sizes, stock | Done (real products pending) | 24 Oct 2026 | 24 Oct 2026 |
 | M3 Cart, orders, approval, dispatch, bill | Done | 24 Oct 2026 | 24 Oct 2026 |
-| M4 Agents | Not started | | |
+| M4 Agents | Done | 24 Oct 2026 | 24 Oct 2026 |
 | M5 Mobile app: shop owner | Not started | | |
 | M6 Distributor tools | Not started | | |
 | M7 Related products, notifications, polish | Not started | | |
@@ -28,8 +28,8 @@
 
 ## Next up
 
-1. M4: agents (add by phone, assigned shops, order on behalf of a shop, onboard a shop).
-2. Later: uncle's real account + real products (replace the demo catalog).
+1. M5: shop owner app screens (login, shop profile, add distributor, catalog, cart, orders, bill), then agent mode (M5-10).
+2. Later: uncle's real account + real products (replace the demo catalog); Meta WhatsApp number for real OTPs.
 
 ## Blockers
 
@@ -98,10 +98,10 @@
 
 | ID | Task | Status | Notes |
 | --- | --- | --- | --- |
-| M4-01 | Distributor adds / removes agent by phone | [ ] | |
-| M4-02 | Agent: my assigned shops | [ ] | |
-| M4-03 | Agent places order for a shop (source = agent) | [ ] | |
-| M4-04 | Agent onboards a new shop | [ ] | |
+| M4-01 | Distributor adds / removes agent by phone | [x] | Generalised to team management: /members (staff + agents), owner/staff permissions; removal unassigns shops |
+| M4-02 | Agent: my assigned shops | [x] | /agent/shops with agent name and last order date; staff can filter /shops by agent |
+| M4-03 | Agent places order for a shop (source = agent) | [x] | Same cart/order endpoints with ?shop_id=; assigned active shops only; source=agent. Staff can do the same (source=admin) |
+| M4-04 | Agent onboards a new shop | [x] | POST /agent/shops; pending unless owner enables auto-approve (PUT /settings); existing shop profiles linked unchanged |
 
 ## M5 — Mobile app: shop owner
 
@@ -167,3 +167,4 @@
 | 24 Oct 2026 | M2 done: photo upload + thumbnails, Excel template/import, 20 dummy products with photos, stricter search. 68 tests pass; live check over Wi-Fi OK | M3 |
 | 24 Oct 2026 | M3 done: cart, orders, approval with edits, dispatch with locked stock deduction, delivery, bill PDF, reorder. 95 tests pass; full flow checked live over Wi-Fi | M4 agents |
 | 24 Oct 2026 | Phone shows API OK (iPhone, Expo Go). Added start-dev.cmd. M0 closed | M4 agents |
+| 24 Oct 2026 | M4 done: team management, agent shops, ordering for a shop (agent/admin), shop sign-up by agent with optional auto-approve, settings. 111 tests pass; live agent flow checked. Plan updated with status and as-built notes | M5 screens |

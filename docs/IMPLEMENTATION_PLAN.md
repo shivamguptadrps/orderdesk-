@@ -6,6 +6,25 @@ Each milestone ends with something you can run and show.
 
 Rough time for one developer working part-time: 10–12 weeks. Estimates are guesses; the tracker shows real progress.
 
+## Status (updated 24 Oct 2026)
+
+| Milestone | Status | Notes |
+| --- | --- | --- |
+| M0 Workspace | ✅ Done | Phone shows "API OK" (tested on iPhone via Expo Go) |
+| M1 Accounts, distributors, shops | ✅ Done | WhatsApp sender written, untested until Meta number is ready |
+| M2 Catalog | ✅ Done | 20 demo products; uncle's real catalog still to enter |
+| M3 Cart, orders, dispatch, bill | ✅ Done | |
+| M4 Agents | ✅ Done | Also: staff management, distributor settings, staff ordering for a shop |
+| M5 Shop owner app | Next | Whole backend for it exists; this is screens only |
+| M6 Distributor tools | Not started | Backend for team, shops, products, stock, orders, settings already exists |
+| M7 Related products, notifications, polish | Not started | |
+| M8 Deploy and pilot | Not started | |
+
+The backend for M1–M4 has 111 automated tests, including tenant isolation for every endpoint and
+concurrency tests for ordering and stock. API reference: http://localhost:8000/docs when the backend runs.
+
+Revised estimate for what is left: M5 2–3 weeks, M6 1.5–2 weeks, M7 1 week, M8 1 week (part-time).
+
 ---
 
 ## M0 — Workspace setup (1–2 days)
@@ -53,6 +72,9 @@ Every other business table carries `tenant_id`.
 
 **Done when:** you can log in with OTP, create a shop, enter your uncle's join code, and approve it from the distributor account (via Swagger UI at `/docs`).
 
+**As built:** refresh tokens are stored hashed in a `refresh_tokens` table and rotate on every use (`POST /auth/refresh`, `POST /auth/logout`).
+OTP: 6 digits, 5 min expiry, 5 wrong tries, 3 requests per 10 min. `GET /me` returns the user's shop and their roles in each distributor.
+
 ---
 
 ## M2 — Catalog: categories, features, products, pack sizes (1.5 weeks)
@@ -90,6 +112,12 @@ Every other business table carries `tenant_id`.
 
 **Done when:** your uncle's 20 real products exist with pack sizes, photos and stock, and search for "cheeni" finds sugar.
 
+**As built:** products also have optional `sku` (used by Excel re-import) and `mrp`; pack sizes have optional `max_qty` (D17).
+Search shows exact word matches first and uses fuzzy matching only when nothing matches exactly.
+Excel import has a dry run, reports every bad row, and saves nothing unless all rows are valid.
+Photos are stored on local disk (`backend/uploads`, served at `/media`) until M8 moves them to object storage.
+The bill uses fpdf2 instead of WeasyPrint (no system libraries needed on Windows); see M3.
+
 ---
 
 ## M3 — Cart, orders, approval, dispatch, bill (2 weeks)
@@ -123,18 +151,31 @@ Product name, unit and rate are **copied** into `order_items` so old bills never
 
 **Done when:** a shop places an order, your uncle edits a quantity, approves, dispatches, stock drops correctly, and the bill PDF opens on the phone.
 
+**As built:**
+- Carts are per shop, per distributor, per person, so an agent's cart for a shop never mixes with the shop's own cart.
+- Order numbers come from a per-distributor counter (row-locked): 1, 2, 3… with no gaps.
+- Cart and order rows are locked before every change; dispatch locks stock rows in a fixed order. Concurrency tests prove a double tap makes one order and two dispatches can't oversell.
+- Staff can cancel pending or approved orders; shops only pending ones (D18). Products that appear in orders can be hidden but not deleted.
+- Bill PDF: fpdf2 with Noto fonts (Hindi prints correctly), Indian number format, titled "Order bill - Not a tax invoice".
+- `/shops/me/orders` shows a shop's orders from every distributor, even after a distributor blocks it.
+
 ---
 
-## M4 — Agents (1 week)
+## M4 — Agents (1 week) ✅
 
-- Distributor adds an agent by phone number (`tenant_members.role = agent`).
-- Agent logs in with the same app; the app shows "Agent mode" for that distributor.
-- `GET /t/{tenant}/agent/shops`: shops assigned to this agent.
-- Agent picks a shop and uses the same cart/order flow; order gets `source=agent`, `placed_by_user_id=agent`. Shop sees it in their orders.
-- Agent can onboard a new shop: creates shop + `distributor_shops` link (pending, or auto-active if the distributor allows).
+- Team: `GET/POST /t/{tenant}/members`, `DELETE /t/{tenant}/members/{user_id}`. The owner adds staff or agents by phone; staff can add agents only.
+  Removing someone unassigns their shops and clears carts they filled for shops; orders they placed stay.
+- Agent logs in with the same app; `GET /me` lists `role: agent` for that distributor, so the app shows "Agent mode".
+- `GET /t/{tenant}/agent/shops`: shops assigned to this agent, with last order date.
+- Ordering on behalf of a shop: the same cart and order endpoints with `?shop_id=`. Agents may only use their assigned, active shops
+  (`source=agent`); staff may use any active shop (`source=admin`). The shop sees the order in its own history with the agent's name.
+- Agents see orders they placed plus orders of their assigned shops; they can cancel their own pending orders, nothing more.
+- Signing up a shop on the spot: `POST /t/{tenant}/agent/shops` with the owner's phone + shop details. Creates the user and shop if new;
+  if that phone already has a shop, the existing profile is linked unchanged. Agent-added shops wait for approval unless the owner turns on
+  `agent_shops_auto_approve` (`PUT /t/{tenant}/settings`, which also sets name, logo and brand colour). Staff-added shops are active at once.
 - Later (not MVP): beat plans, GPS check-in, targets, offline mode.
 
-**Done when:** an agent places an order for a shop and it appears for both the shop and the distributor, tagged with the agent's name.
+**Done when:** an agent places an order for a shop and it appears for both the shop and the distributor, tagged with the agent's name. ✅ Verified live on 24 Oct 2026.
 
 ---
 
@@ -155,6 +196,12 @@ Screens (match the prototype on the design canvas):
 
 Tech notes: React Query for server data with cache; Zustand for selected distributor; token in Expo SecureStore; images via `expo-image` with caching.
 
+Also in M5 (agent mode, M5-10): after login, if `/me` lists an agent role, show a mode switch. Agent mode = pick one of
+`/agent/shops`, then the same catalog/cart/order screens with `?shop_id=`; plus "Add a shop" (`POST /agent/shops`).
+
+Testing: day-to-day on the developer's iPhone with Expo Go (needs the laptop logged in: `npx.cmd expo login --no-browser`).
+Before launch, test on at least one Android phone, since the product is Android-only (D2).
+
 **Done when:** you can do the full order flow on a real Android phone against the dev server.
 
 ---
@@ -162,6 +209,7 @@ Tech notes: React Query for server data with cache; Zustand for selected distrib
 ## M6 — Distributor tools (1.5 weeks)
 
 Distributor mode in the **same mobile app** for the MVP (your uncle uses his phone); a web admin comes later.
+The backend for every item below already exists (M1–M4), so M6 is screens only.
 
 - Orders queue: pending first, approve / edit qty / reject, dispatch, mark delivered.
 - Products: add/edit with category features, pack sizes, photos from camera, stock adjust.

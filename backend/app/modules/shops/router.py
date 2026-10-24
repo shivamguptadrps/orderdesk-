@@ -3,24 +3,28 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.deps import get_current_user
 from app.core.tenancy import STAFF_ROLES, TenantContext, require_roles
 from app.modules.auth.models import User
+from app.modules.orders.models import Order
 from app.modules.shops.models import LINK_STATUSES, DistributorShop, Shop
 from app.modules.shops.schemas import (
     AssignAgentIn,
     JoinDistributorIn,
     MyDistributorOut,
+    OnboardShopIn,
     ShopCreateIn,
     ShopOut,
     ShopUpdateIn,
     TenantShopOut,
 )
 from app.modules.tenants.models import Tenant, TenantMember
+from app.modules.tenants.service import get_or_create_user
 
 router = APIRouter(tags=["shops"])
 
@@ -120,16 +124,29 @@ async def list_my_distributors(user: User = Depends(get_current_user), db: Async
 _staff = require_roles(*STAFF_ROLES)
 
 
+_Agent = aliased(User)
+
+
+def _last_order_at():
+    return (
+        select(func.max(Order.created_at))
+        .where(Order.tenant_id == DistributorShop.tenant_id, Order.shop_id == DistributorShop.shop_id)
+        .correlate(DistributorShop)
+        .scalar_subquery()
+    )
+
+
 def _tenant_shop_query(tenant_id: uuid.UUID):
     return (
-        select(DistributorShop, Shop, User.phone)
+        select(DistributorShop, Shop, User.phone, func.coalesce(_Agent.name, _Agent.phone), _last_order_at())
         .join(Shop, Shop.id == DistributorShop.shop_id)
         .join(User, User.id == Shop.owner_user_id)
+        .outerjoin(_Agent, _Agent.id == DistributorShop.agent_user_id)
         .where(DistributorShop.tenant_id == tenant_id)
     )
 
 
-def _tenant_shop_out(link: DistributorShop, shop: Shop, phone: str) -> TenantShopOut:
+def _tenant_shop_out(link: DistributorShop, shop: Shop, phone: str, agent_name=None, last_order_at=None) -> TenantShopOut:
     return TenantShopOut(
         shop_id=shop.id,
         shop_name=shop.shop_name,
@@ -140,8 +157,15 @@ def _tenant_shop_out(link: DistributorShop, shop: Shop, phone: str) -> TenantSho
         pincode=shop.pincode,
         status=link.status,
         agent_user_id=link.agent_user_id,
+        agent_name=agent_name,
+        added_by_agent=link.added_by_user_id is not None,
+        last_order_at=last_order_at,
         joined_at=link.created_at,
     )
+
+
+async def _fresh(db: AsyncSession, tenant_id: uuid.UUID, shop_id: uuid.UUID) -> TenantShopOut:
+    return _tenant_shop_out(*await _get_tenant_shop(db, tenant_id, shop_id))
 
 
 async def _get_tenant_shop(db: AsyncSession, tenant_id: uuid.UUID, shop_id: uuid.UUID):
@@ -154,22 +178,29 @@ async def _get_tenant_shop(db: AsyncSession, tenant_id: uuid.UUID, shop_id: uuid
 @router.get("/t/{tenant_id}/shops", response_model=list[TenantShopOut])
 async def list_tenant_shops(
     status: str | None = None,
+    agent_user_id: uuid.UUID | None = None,
     ctx: TenantContext = Depends(_staff),
     db: AsyncSession = Depends(get_db),
 ):
-    if status is not None and status not in LINK_STATUSES:
-        raise HTTPException(422, f"status must be one of {', '.join(LINK_STATUSES)}")
+    _check_link_status(status)
     query = _tenant_shop_query(ctx.tenant_id).order_by(DistributorShop.created_at.desc())
     if status:
         query = query.where(DistributorShop.status == status)
+    if agent_user_id:
+        query = query.where(DistributorShop.agent_user_id == agent_user_id)
     return [_tenant_shop_out(*row) for row in await db.execute(query)]
 
 
+def _check_link_status(status: str | None) -> None:
+    if status is not None and status not in LINK_STATUSES:
+        raise HTTPException(422, f"status must be one of {', '.join(LINK_STATUSES)}")
+
+
 async def _set_status(db: AsyncSession, ctx: TenantContext, shop_id: uuid.UUID, status: str) -> TenantShopOut:
-    link, shop, phone = await _get_tenant_shop(db, ctx.tenant_id, shop_id)
+    link, *_ = await _get_tenant_shop(db, ctx.tenant_id, shop_id)
     link.status = status
     await db.commit()
-    return _tenant_shop_out(link, shop, phone)
+    return await _fresh(db, ctx.tenant_id, shop_id)
 
 
 @router.post("/t/{tenant_id}/shops/{shop_id}/approve", response_model=TenantShopOut)
@@ -190,7 +221,7 @@ async def assign_agent(
     db: AsyncSession = Depends(get_db),
 ):
     """Assign one of this distributor's agents to the shop, or send null to unassign."""
-    link, shop, phone = await _get_tenant_shop(db, ctx.tenant_id, shop_id)
+    link, *_ = await _get_tenant_shop(db, ctx.tenant_id, shop_id)
     if body.agent_user_id is not None:
         is_agent = await db.scalar(
             select(TenantMember.id).where(
@@ -203,4 +234,60 @@ async def assign_agent(
             raise HTTPException(400, "This person is not an agent of your business")
     link.agent_user_id = body.agent_user_id
     await db.commit()
-    return _tenant_shop_out(link, shop, phone)
+    return await _fresh(db, ctx.tenant_id, shop_id)
+
+
+# ---------- agents ----------
+
+_agent = require_roles("agent")
+
+
+@router.get("/t/{tenant_id}/agent/shops", response_model=list[TenantShopOut])
+async def my_assigned_shops(
+    status: str | None = None, ctx: TenantContext = Depends(_agent), db: AsyncSession = Depends(get_db)
+):
+    """Shops this agent looks after. Only 'active' shops can be ordered for."""
+    _check_link_status(status)
+    query = _tenant_shop_query(ctx.tenant_id).where(DistributorShop.agent_user_id == ctx.user.id)
+    if status:
+        query = query.where(DistributorShop.status == status)
+    return [_tenant_shop_out(*row) for row in await db.execute(query.order_by(Shop.shop_name))]
+
+
+@router.post("/t/{tenant_id}/agent/shops", response_model=TenantShopOut, status_code=201)
+async def sign_up_shop(
+    body: OnboardShopIn,
+    ctx: TenantContext = Depends(require_roles("agent", *STAFF_ROLES)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sign up a shop on the spot (agent or staff). The shop owner can later log in with their phone.
+
+    If that phone already has a shop profile, the existing profile is linked and left unchanged.
+    Shops added by an agent wait for approval unless the distributor turned on auto-approve;
+    shops added by staff are active straight away.
+    """
+    owner = await get_or_create_user(db, body.owner_phone, body.owner_name)
+    shop = await db.scalar(select(Shop).where(Shop.owner_user_id == owner.id))
+    if shop is None:
+        shop = Shop(owner_user_id=owner.id, **body.model_dump(exclude={"owner_phone"}))
+        db.add(shop)
+        await db.flush()
+    existing = await db.scalar(
+        select(DistributorShop.status).where(
+            DistributorShop.tenant_id == ctx.tenant_id, DistributorShop.shop_id == shop.id
+        )
+    )
+    if existing:
+        raise HTTPException(409, f"This shop is already linked to you (status: {existing})")
+    is_agent = ctx.role == "agent"
+    db.add(
+        DistributorShop(
+            tenant_id=ctx.tenant_id,
+            shop_id=shop.id,
+            status="pending" if is_agent and not ctx.tenant.agent_shops_auto_approve else "active",
+            agent_user_id=ctx.user.id if is_agent else None,
+            added_by_user_id=ctx.user.id,
+        )
+    )
+    await db.commit()
+    return await _fresh(db, ctx.tenant_id, shop.id)

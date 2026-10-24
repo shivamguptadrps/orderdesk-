@@ -75,6 +75,8 @@ first for his uncle, an FMCG distributor in India; other distributors will be on
 - M3 done: `app/modules/orders` (service.py holds all rules). Cart and order rows are locked (`FOR UPDATE`)
   before any change; dispatch locks stock rows sorted by product_id. Bill PDF: `orders/bill.py` (fpdf2 + Noto fonts
   in `app/assets/fonts`, no system libraries needed).
+- M4 done: team in `tenants/router.py` (/members, /settings); agent shops + shop sign-up in `shops/router.py`;
+  ordering for a shop via `get_buyer` in `orders/router.py` (`?shop_id=`, agent must be assigned).
 - Search: exact word matches first; fuzzy `word_similarity` only when nothing matches exactly.
 - Windows tooling note: curl from Git Bash garbles Hindi text; test Hindi with Python/httpx.
 - Next: see `docs/TRACKER.md` "Next up" (git commit, Node 22 LTS, M0-06 mobile).

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, Timestamps, UUIDPk
@@ -22,6 +22,8 @@ class Tenant(UUIDPk, Timestamps, Base):
     status: Mapped[str] = mapped_column(String(20), default="active", server_default="active")
     # Next order number for this distributor. Taken with a row lock, so numbers have no gaps or repeats.
     next_order_no: Mapped[int] = mapped_column(default=1, server_default="1")
+    # Shops added by an agent start active (True) or wait for approval (False)
+    agent_shops_auto_approve: Mapped[bool] = mapped_column(default=False, server_default=false())
 
 
 class TenantMember(UUIDPk, Timestamps, Base):

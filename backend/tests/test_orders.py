@@ -7,36 +7,6 @@ import pytest
 from tests.conftest import sugar
 
 
-@pytest.fixture
-async def o(client, cat):
-    """`cat` (tenant A + approved shop) plus two products and handy URL helpers."""
-    a = cat["a"]
-
-    async def create(body):
-        res = await client.post(f"/t/{a.id}/products", json=body, headers=cat["owner"])
-        assert res.status_code == 201, res.text
-        return res.json()
-
-    sug = await create(sugar(cat["ids"]["Sugar"]))  # Packet: 1 pc, min 2, ₹45 · Bag: 30 pcs, ₹1290 · stock 300
-    chips = await create(
-        sugar(
-            cat["ids"]["Chips"], name="Munch Chips 52 g", brand="Munch", sku="CHIP", search_aliases=None,
-            attributes={"weight_g": 52},
-            units=[{"name": "Packet", "pieces_per_unit": 1, "price": 17, "step_qty": 6, "max_qty": 600}],
-            opening_stock_pieces=1000,
-        )
-    )
-    unit = lambda p, name: next(u["id"] for u in p["units"] if u["name"] == name)  # noqa: E731
-    return cat | {
-        "t": f"/t/{a.id}",
-        "sugar": sug,
-        "chips": chips,
-        "packet": unit(sug, "Packet"),
-        "bag": unit(sug, "Bag"),
-        "chip_packet": unit(chips, "Packet"),
-    }
-
-
 async def add(client, o, unit_id, qty, headers=None):
     return await client.post(f"{o['t']}/cart/items", json={"unit_id": unit_id, "qty": qty}, headers=headers or o["shop"])
 
@@ -129,11 +99,11 @@ async def test_cart_flags_stock_that_ran_out(client, o):
     assert (await place(client, o)).status_code == 409
 
 
-async def test_only_shops_use_carts(client, o, login, add_member):
-    assert (await client.get(f"{o['t']}/cart", headers=o["owner"])).status_code == 403
+async def test_staff_and_agents_must_say_which_shop(client, o, login, add_member):
+    assert (await client.get(f"{o['t']}/cart", headers=o["owner"])).status_code == 422
     await add_member(o["a"], "9111111111", "agent")
     agent = await login("9111111111")
-    assert (await client.get(f"{o['t']}/cart", headers=agent)).status_code == 403  # agent ordering comes in M4
+    assert (await client.get(f"{o['t']}/cart", headers=agent)).status_code == 422
 
 
 # ---------- placing orders ----------

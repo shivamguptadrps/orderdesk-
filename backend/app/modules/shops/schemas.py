@@ -2,7 +2,9 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.core.phone import normalize_phone
 
 
 class ShopBase(BaseModel):
@@ -67,8 +69,22 @@ class TenantShopOut(BaseModel):
     pincode: str
     status: str
     agent_user_id: uuid.UUID | None
+    agent_name: str | None = None
+    added_by_agent: bool = False
+    last_order_at: datetime | None = None
     joined_at: datetime
 
 
 class AssignAgentIn(BaseModel):
     agent_user_id: uuid.UUID | None = None
+
+
+class OnboardShopIn(ShopBase):
+    """An agent signs up a shop: the shop owner's phone plus the shop profile."""
+
+    owner_phone: str = Field(examples=["9123456789"])
+
+    @field_validator("owner_phone")
+    @classmethod
+    def _phone(cls, v: str) -> str:
+        return normalize_phone(v)

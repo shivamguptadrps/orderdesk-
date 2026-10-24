@@ -1,9 +1,10 @@
 """Cart (/t/{tenant_id}/cart), orders (/t/{tenant_id}/orders) and a shop's orders across distributors (/shops/me/orders)."""
 
 import uuid
+from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
@@ -28,41 +29,87 @@ from app.modules.orders.schemas import (
     ReasonIn,
     ReorderOut,
 )
-from app.modules.shops.models import Shop
+from app.modules.shops.models import DistributorShop, Shop
 from app.modules.tenants.models import Tenant
 
 router = APIRouter(tags=["orders"])
-_shop = require_roles("shop")
 _staff = require_roles(*STAFF_ROLES)
+
+
+@dataclass
+class Buyer:
+    """Who is filling the cart, and for which shop."""
+
+    ctx: TenantContext
+    shop_id: uuid.UUID
+    source: str  # shop, agent or admin
+
+    @property
+    def tenant_id(self) -> uuid.UUID:
+        return self.ctx.tenant_id
+
+    @property
+    def user(self) -> User:
+        return self.ctx.user
+
+
+async def get_buyer(
+    shop_id: uuid.UUID | None = Query(default=None, description="Agents and staff: the shop you are ordering for"),
+    ctx: TenantContext = Depends(get_tenant_context),
+    db: AsyncSession = Depends(get_db),
+) -> Buyer:
+    """A shop orders for itself. An agent orders for one of its assigned active shops; staff for any active shop."""
+    if ctx.role == "shop":
+        if shop_id is not None and shop_id != ctx.shop_id:
+            raise HTTPException(404, "Shop not found")
+        return Buyer(ctx, ctx.shop_id, "shop")
+    if shop_id is None:
+        raise HTTPException(422, "shop_id is required: which shop are you ordering for?")
+    link = await db.scalar(
+        select(DistributorShop).where(
+            DistributorShop.tenant_id == ctx.tenant_id,
+            DistributorShop.shop_id == shop_id,
+            DistributorShop.status == "active",
+        )
+    )
+    if link is None or (ctx.role == "agent" and link.agent_user_id != ctx.user.id):
+        raise HTTPException(404, "Shop not found")
+    return Buyer(ctx, shop_id, "agent" if ctx.role == "agent" else "admin")
+
+
+def _agent_shop_ids(ctx: TenantContext):
+    return select(DistributorShop.shop_id).where(
+        DistributorShop.tenant_id == ctx.tenant_id, DistributorShop.agent_user_id == ctx.user.id
+    )
 
 
 # ---------- cart (shop) ----------
 
 
-async def _cart_response(db: AsyncSession, ctx: TenantContext) -> CartOut:
-    cart = await service.find_cart(db, ctx.tenant_id, ctx.shop_id, ctx.user.id)
+async def _cart_response(db: AsyncSession, b: Buyer) -> CartOut:
+    cart = await service.find_cart(db, b.tenant_id, b.shop_id, b.user.id)
     return service.cart_out(cart, await service.evaluate_cart(db, cart))
 
 
 @router.get("/t/{tenant_id}/cart", response_model=CartOut)
-async def get_cart(ctx: TenantContext = Depends(_shop), db: AsyncSession = Depends(get_db)):
+async def get_cart(b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
     """The cart for this distributor. Lines with a `problem` must be fixed before ordering."""
-    return await _cart_response(db, ctx)
+    return await _cart_response(db, b)
 
 
 @router.post("/t/{tenant_id}/cart/items", response_model=CartOut)
-async def add_to_cart(body: CartAddIn, ctx: TenantContext = Depends(_shop), db: AsyncSession = Depends(get_db)):
+async def add_to_cart(body: CartAddIn, b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
     """Add packs to the cart. If this pack size is already there, the quantities are added up."""
-    unit, product = await service.get_sellable_unit(db, ctx.tenant_id, body.unit_id)
-    cart = await service.lock_cart(db, ctx.tenant_id, ctx.shop_id, ctx.user.id)
+    unit, product = await service.get_sellable_unit(db, b.tenant_id, body.unit_id)
+    cart = await service.lock_cart(db, b.tenant_id, b.shop_id, b.user.id)
     existing = next((i.qty for i in cart.items if i.unit_id == unit.id), 0)
     await service.set_cart_qty(db, cart, unit, product, existing + body.qty)
     await db.commit()
-    return await _cart_response(db, ctx)
+    return await _cart_response(db, b)
 
 
-async def _locked_line(db, ctx: TenantContext, item_id: uuid.UUID):
-    cart = await service.lock_cart(db, ctx.tenant_id, ctx.shop_id, ctx.user.id)
+async def _locked_line(db, b: Buyer, item_id: uuid.UUID):
+    cart = await service.lock_cart(db, b.tenant_id, b.shop_id, b.user.id)
     line = next((i for i in cart.items if i.id == item_id), None)
     if line is None:
         raise HTTPException(404, "Item not in your cart")
@@ -71,49 +118,52 @@ async def _locked_line(db, ctx: TenantContext, item_id: uuid.UUID):
 
 @router.put("/t/{tenant_id}/cart/items/{item_id}", response_model=CartOut)
 async def update_cart_item(
-    item_id: uuid.UUID, body: CartQtyIn, ctx: TenantContext = Depends(_shop), db: AsyncSession = Depends(get_db)
+    item_id: uuid.UUID, body: CartQtyIn, b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)
 ):
-    cart, line = await _locked_line(db, ctx, item_id)
-    unit, product = await service.get_sellable_unit(db, ctx.tenant_id, line.unit_id)
+    cart, line = await _locked_line(db, b, item_id)
+    unit, product = await service.get_sellable_unit(db, b.tenant_id, line.unit_id)
     await service.set_cart_qty(db, cart, unit, product, body.qty)
     await db.commit()
-    return await _cart_response(db, ctx)
+    return await _cart_response(db, b)
 
 
 @router.delete("/t/{tenant_id}/cart/items/{item_id}", response_model=CartOut)
-async def remove_cart_item(item_id: uuid.UUID, ctx: TenantContext = Depends(_shop), db: AsyncSession = Depends(get_db)):
-    cart, line = await _locked_line(db, ctx, item_id)
+async def remove_cart_item(item_id: uuid.UUID, b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
+    cart, line = await _locked_line(db, b, item_id)
     cart.items.remove(line)
     await db.commit()
-    return await _cart_response(db, ctx)
+    return await _cart_response(db, b)
 
 
 @router.put("/t/{tenant_id}/cart/note", response_model=CartOut)
-async def set_cart_note(body: CartNoteIn, ctx: TenantContext = Depends(_shop), db: AsyncSession = Depends(get_db)):
-    cart = await service.lock_cart(db, ctx.tenant_id, ctx.shop_id, ctx.user.id)
+async def set_cart_note(body: CartNoteIn, b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
+    cart = await service.lock_cart(db, b.tenant_id, b.shop_id, b.user.id)
     cart.note = (body.note or "").strip() or None
     await db.commit()
-    return await _cart_response(db, ctx)
+    return await _cart_response(db, b)
 
 
 @router.delete("/t/{tenant_id}/cart", response_model=CartOut)
-async def clear_cart(ctx: TenantContext = Depends(_shop), db: AsyncSession = Depends(get_db)):
-    cart = await service.lock_cart(db, ctx.tenant_id, ctx.shop_id, ctx.user.id)
+async def clear_cart(b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
+    cart = await service.lock_cart(db, b.tenant_id, b.shop_id, b.user.id)
     cart.items.clear()
     cart.note = None
     await db.commit()
-    return await _cart_response(db, ctx)
+    return await _cart_response(db, b)
 
 
 # ---------- placing and viewing orders ----------
 
 
 @router.post("/t/{tenant_id}/orders", response_model=OrderOut, status_code=201)
-async def place_order(body: PlaceOrderIn, ctx: TenantContext = Depends(_shop), db: AsyncSession = Depends(get_db)):
-    """Place an order from the cart. It waits for the distributor's approval."""
-    cart = await service.lock_cart(db, ctx.tenant_id, ctx.shop_id, ctx.user.id)
-    shop = await db.get(Shop, ctx.shop_id)
-    order = await service.place_order(db, cart=cart, shop=shop, user_id=ctx.user.id, source="shop", note=body.note)
+async def place_order(body: PlaceOrderIn, b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
+    """Place an order from the cart. It waits for the distributor's approval.
+
+    Agents/staff pass `shop_id`; the order is tagged as placed by them.
+    """
+    cart = await service.lock_cart(db, b.tenant_id, b.shop_id, b.user.id)
+    shop = await db.get(Shop, b.shop_id)
+    order = await service.place_order(db, cart=cart, shop=shop, user_id=b.user.id, source=b.source, note=body.note)
     await db.commit()
     return await service.order_out(db, order)
 
@@ -132,7 +182,8 @@ async def list_orders(
     ctx: TenantContext = Depends(get_tenant_context),
     db: AsyncSession = Depends(get_db),
 ):
-    """Distributor staff see all orders (filter by status for the queue); a shop sees its own."""
+    """Staff see all orders (filter by status for the queue); a shop sees its own; an agent sees
+    orders it placed and orders of its shops."""
     _check_status_filter(status)
     query = select(Order).where(Order.tenant_id == ctx.tenant_id)
     if ctx.role in STAFF_ROLES:
@@ -140,8 +191,12 @@ async def list_orders(
             query = query.where(Order.shop_id == shop_id)
     elif ctx.role == "shop":
         query = query.where(Order.shop_id == ctx.shop_id)
-    else:
-        raise HTTPException(403, "You don't have access to this")
+    else:  # agent: orders they placed, or for shops they look after
+        query = query.where(
+            or_(Order.placed_by_user_id == ctx.user.id, Order.shop_id.in_(_agent_shop_ids(ctx)))
+        )
+        if shop_id:
+            query = query.where(Order.shop_id == shop_id)
     if status:
         query = query.where(Order.status == status)
     query = query.order_by(Order.created_at.desc(), Order.order_no.desc())
@@ -154,9 +209,19 @@ async def _visible_order(db: AsyncSession, ctx: TenantContext, order_id: uuid.UU
     order = await db.scalar(
         select(Order).where(Order.id == order_id, Order.tenant_id == ctx.tenant_id).execution_options(populate_existing=True)
     )
-    if order is None or (ctx.role == "shop" and order.shop_id != ctx.shop_id) or ctx.role not in (*STAFF_ROLES, "shop"):
+    if order is None or not await _can_see(db, ctx, order):
         raise HTTPException(404, "Order not found")
     return order
+
+
+async def _can_see(db: AsyncSession, ctx: TenantContext, order: Order) -> bool:
+    if ctx.role in STAFF_ROLES:
+        return True
+    if ctx.role == "shop":
+        return order.shop_id == ctx.shop_id
+    if order.placed_by_user_id == ctx.user.id:
+        return True
+    return order.shop_id in set(await db.scalars(_agent_shop_ids(ctx)))
 
 
 @router.get("/t/{tenant_id}/orders/{order_id}", response_model=OrderOut)
@@ -192,10 +257,15 @@ async def _locked_own_order(db: AsyncSession, ctx: TenantContext, order_id: uuid
 
 
 @router.post("/t/{tenant_id}/orders/{order_id}/reorder", response_model=ReorderOut)
-async def reorder(order_id: uuid.UUID, ctx: TenantContext = Depends(_shop), db: AsyncSession = Depends(get_db)):
-    """Put a past order's items back in the cart at today's prices. Unavailable items are skipped."""
-    order = await _visible_order(db, ctx, order_id)
-    cart = await service.lock_cart(db, ctx.tenant_id, ctx.shop_id, ctx.user.id)
+async def reorder(order_id: uuid.UUID, b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
+    """Put a past order's items back in the cart at today's prices. Unavailable items are skipped.
+
+    Agents/staff pass the order's `shop_id`.
+    """
+    order = await _visible_order(db, b.ctx, order_id)
+    if order.shop_id != b.shop_id:
+        raise HTTPException(404, "Order not found")
+    cart = await service.lock_cart(db, b.tenant_id, b.shop_id, b.user.id)
     added, skipped = 0, []
     for item in order.items:
         if item.qty_ordered <= 0:
@@ -203,20 +273,20 @@ async def reorder(order_id: uuid.UUID, ctx: TenantContext = Depends(_shop), db: 
         try:
             if item.unit_id is None:
                 raise HTTPException(404)
-            unit, product = await service.get_sellable_unit(db, ctx.tenant_id, item.unit_id)
+            unit, product = await service.get_sellable_unit(db, b.tenant_id, item.unit_id)
         except HTTPException:
             skipped.append(item.product_name)
             continue
         line = next((i for i in cart.items if i.unit_id == unit.id), None)
         if line is None:
             cart.items.append(
-                service.CartItem(tenant_id=ctx.tenant_id, product_id=product.id, unit_id=unit.id, qty=item.qty_ordered)
+                service.CartItem(tenant_id=b.tenant_id, product_id=product.id, unit_id=unit.id, qty=item.qty_ordered)
             )
         else:
             line.qty += item.qty_ordered
         added += 1
     await db.commit()
-    return ReorderOut(cart=await _cart_response(db, ctx), added=added, skipped=skipped)
+    return ReorderOut(cart=await _cart_response(db, b), added=added, skipped=skipped)
 
 
 # ---------- distributor actions ----------
@@ -273,15 +343,18 @@ async def deliver_order(
 async def cancel_order(
     order_id: uuid.UUID, body: NoteIn, ctx: TenantContext = Depends(get_tenant_context), db: AsyncSession = Depends(get_db)
 ):
-    """A shop can cancel its own order while pending. Staff can cancel pending or approved orders."""
+    """A shop (or the agent who placed it) can cancel while pending. Staff can cancel pending or approved orders."""
     if ctx.role == "shop":
         order = await _locked_own_order(db, ctx, order_id)
         service.cancel(order, ctx.user.id, body.note, by_shop=True)
     elif ctx.role in STAFF_ROLES:
         order = await service.lock_order(db, ctx.tenant_id, order_id)
         service.cancel(order, ctx.user.id, body.note, by_shop=False)
-    else:
-        raise HTTPException(403, "You don't have access to this")
+    else:  # agent: only orders it placed, while pending
+        order = await service.lock_order(db, ctx.tenant_id, order_id)
+        if order.placed_by_user_id != ctx.user.id:
+            raise HTTPException(404, "Order not found")
+        service.cancel(order, ctx.user.id, body.note, by_shop=True)
     return await _after(db, order)
 
 
