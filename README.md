@@ -60,6 +60,12 @@ Create a distributor to test with (prints its join code):
 python -m scripts.seed_tenant --name "Demo Distributor" --owner-phone 9000000001 --join-code DEMO01
 ```
 
+Load 20 dummy products with photos into it (safe to run again):
+
+```
+python -m scripts.seed_demo_catalog --join-code DEMO01
+```
+
 In dev, OTP codes are printed in the uvicorn console (`DEV OTP for +91...`).
 
 Open http://localhost:8000/health → should show `"db": "ok"`.

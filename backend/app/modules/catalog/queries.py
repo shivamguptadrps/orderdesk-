@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.media import thumb_url
 from app.modules.catalog.models import Product, ProductUnit
 from app.modules.catalog.schemas import CatalogUnitOut, ProductOut, UnitOut
 
@@ -71,6 +72,7 @@ def product_out(product: Product, stock_pieces: int) -> ProductOut:
         mrp=product.mrp,
         attributes=product.attributes,
         images=product.images,
+        thumbnails=[thumb_url(u) for u in product.images],
         status=product.status,
         units=[unit_out(u) for u in product.units],
         stock_pieces=stock_pieces,
@@ -83,18 +85,23 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def apply_search(query: Select, q: str | None) -> Select:
-    """Match name, brand and aliases in any script: exact substring, or a close fuzzy match.
+async def apply_search(db: AsyncSession, query: Select, q: str | None) -> Select:
+    """Search name, brand and aliases in any script.
 
+    1. Exact: every word typed appears somewhere (e.g. "sugar 1 kg").
+    2. Only if nothing matches exactly: fuzzy match to catch typos ("suger" -> sugar).
     Hinglish works because distributors put spellings like 'cheeni, chini, शक्कर' in search_aliases.
     """
-    q = (q or "").strip().lower()
+    q = " ".join((q or "").lower().split())
     if not q:
         return query.order_by(Product.name)
     similarity = func.word_similarity(q, Product.search_text)
-    return query.where(
-        or_(Product.search_text.like(f"%{_escape_like(q)}%", escape="\\"), similarity >= SEARCH_SIMILARITY)
-    ).order_by(similarity.desc(), Product.name)
+    exact = query.where(
+        *[Product.search_text.like(f"%{_escape_like(word)}%", escape="\\") for word in q.split(" ")]
+    )
+    if await db.scalar(select(exact.order_by(None).exists())):
+        return exact.order_by(similarity.desc(), Product.name)
+    return query.where(similarity >= SEARCH_SIMILARITY).order_by(similarity.desc(), Product.name)
 
 
 def parse_filters(raw: str | None) -> dict[str, Any]:

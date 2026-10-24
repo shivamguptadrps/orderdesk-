@@ -7,6 +7,7 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
+from app.core.media import thumb_url
 from app.core.tenancy import TenantContext, get_tenant_context
 from app.modules.catalog.models import Product, ProductUnit
 from app.modules.catalog.queries import (
@@ -112,7 +113,7 @@ async def catalog_products(
     query = apply_attribute_filters(query, parse_filters(filters))
     if in_stock_only:
         query = query.where(exists().where(Stock.product_id == Product.id, Stock.qty_pieces > 0))
-    query = apply_search(query, q)
+    query = await apply_search(db, query, q)
 
     total = await count(db, query)
     products = (await db.scalars(query.limit(limit).offset(offset))).all()
@@ -126,7 +127,7 @@ async def catalog_products(
                 name=p.name,
                 brand=p.brand,
                 category_id=p.category_id,
-                image=p.images[0] if p.images else None,
+                image=thumb_url(p.images[0]) if p.images else None,
                 mrp=p.mrp,
                 default_unit=catalog_unit_out(default_unit(p), pieces),
                 in_stock=pieces > 0,
@@ -159,6 +160,7 @@ async def catalog_product(
         category_path=tree.path_names(product.category_id),
         mrp=product.mrp,
         images=product.images,
+        thumbnails=[thumb_url(u) for u in product.images],
         features=features,
         units=[catalog_unit_out(u, pieces) for u in product.units],
         in_stock=pieces > 0,

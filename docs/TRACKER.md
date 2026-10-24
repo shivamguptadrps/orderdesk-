@@ -18,7 +18,7 @@
 | --- | --- | --- | --- |
 | M0 Workspace setup | Done (phone check pending) | 24 Oct 2026 | |
 | M1 Accounts, distributors, shops | Backend done | 24 Oct 2026 | |
-| M2 Catalog, features, pack sizes, stock | In progress | 24 Oct 2026 | |
+| M2 Catalog, features, pack sizes, stock | Done (real products pending) | 24 Oct 2026 | 24 Oct 2026 |
 | M3 Cart, orders, approval, dispatch, bill | Not started | | |
 | M4 Agents | Not started | | |
 | M5 Mobile app: shop owner | Not started | | |
@@ -29,9 +29,8 @@
 ## Next up
 
 1. Confirm the phone shows "API OK" in Expo Go (closes M0-06).
-2. M2-06 image upload + thumbnails, M2-10 Excel import.
-3. M2-11: create uncle's real distributor account and enter his first 20 products.
-4. Then M3 (cart, orders, approval, dispatch, bill).
+2. M3: cart, orders, approval, dispatch (stock deduction), simple bill PDF.
+3. Later: uncle's real account + real products (replace the demo catalog).
 
 ## Blockers
 
@@ -75,12 +74,12 @@
 | M2-03 | Category and attribute CRUD (with inheritance from parent) | [x] | Max 3 levels; feature keys unique along parent/child line; deleting a feature strips it from products |
 | M2-04 | Product CRUD with attribute validation | [x] | Values checked for type/required/options; select options case-insensitive |
 | M2-05 | Pack sizes (units) with MOQ and step | [x] | Exactly one default pack size kept automatically |
-| M2-06 | Image upload + thumbnails | [ ] | |
+| M2-06 | Image upload + thumbnails | [x] | Local disk under backend/uploads, served at /media; 800px + 200px JPEG; EXIF rotation fixed; max 10 photos |
 | M2-07 | Stock adjust endpoint writing the ledger | [x] | change (pieces or pack size) or set_to; row lock; can't go below 0; concurrency test |
 | M2-08 | Shop catalog endpoints: categories, list with filters, detail | [x] | Category tree, filters endpoint, list with q/category/brand/filters/in_stock_only, detail |
-| M2-09 | Search with pg_trgm over name, brand, aliases (Hindi/English/Hinglish) | [x] | Substring or word_similarity >= 0.4 on name+brand+aliases. cheeni/chini/शक्कर/suger all work |
-| M2-10 | Excel import per category (template download + upload) | [ ] | |
-| M2-11 | Enter 20 real products from uncle's catalog | [ ] | |
+| M2-09 | Search with pg_trgm over name, brand, aliases (Hindi/English/Hinglish) | [x] | Exact (every word) first; fuzzy (word_similarity >= 0.4) only when nothing matches exactly |
+| M2-10 | Excel import per category (template download + upload) | [x] | Template per category with dropdowns; dry run; all-or-nothing; SKU updates existing product |
+| M2-11 | Enter 20 real products from uncle's catalog | [~] | 20 DUMMY products with generated photos (scripts/seed_demo_catalog.py). Uncle's real products still to enter |
 
 ## M3 — Cart, orders, approval, dispatch, bill
 
@@ -166,3 +165,4 @@
 | 24 Oct 2026 | Docker updated and working; Postgres up. M1 backend built: OTP login, refresh tokens, /me, shop profile, join by code, distributor approve/block/assign agent, tenant isolation. 31 tests pass; full flow checked on live server | Git commit, Node 22, M0-06 mobile |
 | 24 Oct 2026 | Node 22 installed. Expo SDK 58 mobile app created with an API health screen; all checks pass. Firewall change needs the user's OK | Phone test, then M2 |
 | 24 Oct 2026 | M2 catalog backend: categories + inherited features, FMCG template, products, pack sizes, stock + ledger, shop catalog with search and filters. 56 tests pass; live search check OK | Images, Excel import, real products |
+| 24 Oct 2026 | M2 done: photo upload + thumbnails, Excel template/import, 20 dummy products with photos, stricter search. 68 tests pass; live check over Wi-Fi OK | M3 |

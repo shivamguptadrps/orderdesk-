@@ -69,4 +69,9 @@ first for his uncle, an FMCG distributor in India; other distributors will be on
   and migrations drift.
 - Windows note: PowerShell 5.1 `Set-Content -Encoding utf8` adds a BOM that breaks `alembic.ini`/`.env`; edit those with
   the editor or Python.
+- M2 done: catalog module (`app/modules/catalog`), stock (`app/modules/inventory`, change stock only via
+  `inventory.service.change_stock`, which locks the row and writes the ledger), photos in `app/core/media.py`
+  (local `backend/uploads`, served at `/media`), Excel import in `catalog/excel.py`.
+- Search: exact word matches first; fuzzy `word_similarity` only when nothing matches exactly.
+- Windows tooling note: curl from Git Bash garbles Hindi text; test Hindi with Python/httpx.
 - Next: see `docs/TRACKER.md` "Next up" (git commit, Node 22 LTS, M0-06 mobile).

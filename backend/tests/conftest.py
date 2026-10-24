@@ -5,12 +5,14 @@ Tables are emptied after every test. Override the URL with TEST_DATABASE_URL if 
 
 import asyncio
 import os
+import tempfile
 from pathlib import Path
 
 # Must be set before any `app` import, because settings and the engine are created at import time.
 os.environ["APP_ENV"] = "test"
 os.environ["JWT_SECRET"] = "test-secret-not-for-production-0123456789"
 os.environ["OTP_MODE"] = "log"
+os.environ["MEDIA_DIR"] = tempfile.mkdtemp(prefix="orderdesk-media-")
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://orderdesk:orderdesk_dev@localhost:5432/orderdesk_test"
 )
@@ -132,3 +134,42 @@ def make_shop(client, login):
         return headers, res.json()
 
     return _make
+
+
+# ---------- catalog fixtures (M2) ----------
+
+CAT_OWNER_A = "9000000001"
+CAT_OWNER_B = "9000000002"
+CAT_SHOP = "9876543210"
+
+
+@pytest.fixture
+async def cat(client, login, make_tenant, make_shop):
+    """Tenant A (FMCG template) with an approved shop, tenant B. Returns handy values."""
+    a = await make_tenant("Gupta Traders", owner_phone=CAT_OWNER_A, join_code="GUPTA7")
+    b = await make_tenant("Verma Agencies", owner_phone=CAT_OWNER_B, join_code="VERMA8")
+    owner = await login(CAT_OWNER_A)
+    shop_headers, shop = await make_shop(CAT_SHOP)
+    await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=shop_headers)
+    await client.post(f"/t/{a.id}/shops/{shop['id']}/approve", headers=owner)
+    cats = (await client.get(f"/t/{a.id}/categories", headers=owner)).json()
+    ids = {c["name"]: c["id"] for c in cats}
+    return {"a": a, "b": b, "owner": owner, "owner_b": await login(CAT_OWNER_B), "shop": shop_headers, "ids": ids}
+
+
+def sugar(category_id, **over):
+    body = {
+        "category_id": category_id,
+        "name": "Madhur Sugar 1 kg",
+        "brand": "Madhur",
+        "search_aliases": "cheeni, chini, शक्कर",
+        "sku": "MAD-SUG-1",
+        "mrp": 50,
+        "attributes": {"weight_kg": 1, "grain": "medium"},
+        "units": [
+            {"name": "Packet", "pieces_per_unit": 1, "price": 45, "min_qty": 2},
+            {"name": "Bag", "pieces_per_unit": 30, "price": 1290, "is_default": True},
+        ],
+        "opening_stock_pieces": 300,
+    }
+    return body | over

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     otp_rate_limit_count: int = 3
     otp_rate_limit_window_minutes: int = 10
 
+    media_dir: str = "uploads"  # product photos (local disk in dev)
+    media_url_prefix: str = "/media"
+
     whatsapp_token: str = ""
     whatsapp_phone_number_id: str = ""
     whatsapp_otp_template: str = ""

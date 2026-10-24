@@ -4,41 +4,7 @@ import json
 
 import pytest
 
-OWNER_A = "9000000001"
-OWNER_B = "9000000002"
-SHOP = "9876543210"
-
-
-@pytest.fixture
-async def cat(client, login, make_tenant, make_shop):
-    """Tenant A (FMCG template) with an approved shop, tenant B. Returns handy values."""
-    a = await make_tenant("Gupta Traders", owner_phone=OWNER_A, join_code="GUPTA7")
-    b = await make_tenant("Verma Agencies", owner_phone=OWNER_B, join_code="VERMA8")
-    owner = await login(OWNER_A)
-    shop_headers, shop = await make_shop(SHOP)
-    await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=shop_headers)
-    await client.post(f"/t/{a.id}/shops/{shop['id']}/approve", headers=owner)
-    cats = (await client.get(f"/t/{a.id}/categories", headers=owner)).json()
-    ids = {c["name"]: c["id"] for c in cats}
-    return {"a": a, "b": b, "owner": owner, "owner_b": await login(OWNER_B), "shop": shop_headers, "ids": ids}
-
-
-def sugar(category_id, **over):
-    body = {
-        "category_id": category_id,
-        "name": "Madhur Sugar 1 kg",
-        "brand": "Madhur",
-        "search_aliases": "cheeni, chini, शक्कर",
-        "sku": "MAD-SUG-1",
-        "mrp": 50,
-        "attributes": {"weight_kg": 1, "grain": "medium"},
-        "units": [
-            {"name": "Packet", "pieces_per_unit": 1, "price": 45, "min_qty": 2},
-            {"name": "Bag", "pieces_per_unit": 30, "price": 1290, "is_default": True},
-        ],
-        "opening_stock_pieces": 300,
-    }
-    return body | over
+from tests.conftest import sugar
 
 
 async def _create(client, c, body):
@@ -377,3 +343,11 @@ async def test_other_tenant_cannot_touch_catalog(client, cat, products):
 
     # A's shop doesn't see B's catalog
     assert (await client.get(f"/t/{b.id}/catalog/products", headers=cat["shop"])).status_code == 404
+
+
+async def test_exact_matches_beat_fuzzy_ones(client, cat, products):
+    """'chawal' must not pull in products that merely start with 'cha' (chai, chakki...)."""
+    ids = cat["ids"]
+    await _create(client, cat, sugar(ids["Beverages"], name="Chai Bahar Tea", brand="Chai Bahar", sku="TEA", search_aliases="chai patti", attributes={}))
+    assert await _search(client, cat, q="chawal") == ["India Gate Basmati Rice 5 kg"]
+    assert await _search(client, cat, q="sugar 5 kg") == ["Madhur Sugar 5 kg"]

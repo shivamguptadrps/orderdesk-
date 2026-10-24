@@ -1,11 +1,13 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models as _models  # noqa: F401  (registers all tables)
 from app.core.config import get_settings
 from app.core.db import get_db
+from app.core.media import media_root
 from app.modules.auth.router import router as auth_router
 from app.modules.catalog.router_catalog import router as catalog_router
 from app.modules.catalog.router_manage import router as catalog_manage_router
@@ -37,6 +39,7 @@ app.include_router(tenants_router)
 app.include_router(catalog_manage_router)
 app.include_router(catalog_router)
 app.include_router(inventory_router)
+app.mount(settings.media_url_prefix, StaticFiles(directory=media_root()), name="media")
 
 
 @app.get("/", include_in_schema=False)

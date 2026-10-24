@@ -205,6 +205,7 @@ class ProductOut(BaseModel):
     mrp: Money | None
     attributes: dict[str, Any]
     images: list[str]
+    thumbnails: list[str]
     status: str
     units: list[UnitOut]
     stock_pieces: int
@@ -232,7 +233,7 @@ class CatalogCard(BaseModel):
     name: str
     brand: str | None
     category_id: uuid.UUID
-    image: str | None
+    image: str | None  # small 200px thumbnail
     mrp: Money | None
     default_unit: CatalogUnitOut
     in_stock: bool
@@ -251,7 +252,8 @@ class CatalogDetail(BaseModel):
     category_id: uuid.UUID
     category_path: list[str]
     mrp: Money | None
-    images: list[str]
+    images: list[str]  # 800px
+    thumbnails: list[str]  # 200px, same order
     features: list[FeatureOut]
     units: list[CatalogUnitOut]
     in_stock: bool

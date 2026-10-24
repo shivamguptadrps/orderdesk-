@@ -2,13 +2,16 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
+from pydantic import BaseModel
 from sqlalchemy import String, cast, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
+from app.core.media import MAX_UPLOAD_BYTES, delete_product_image, save_product_image
 from app.core.tenancy import STAFF_ROLES, TenantContext, require_roles
+from app.modules.catalog import excel
 from app.modules.catalog.models import MAX_CATEGORY_DEPTH, AttributeDefinition, Category, Product, ProductUnit
 from app.modules.catalog.queries import (
     apply_search,
@@ -250,7 +253,7 @@ async def list_products(
         query = query.where(Product.category_id.in_(tree.subtree(category_id)))
     if status:
         query = query.where(Product.status == status)
-    query = apply_search(query, q)
+    query = await apply_search(db, query, q)
     total = await count(db, query)
     products = (await db.scalars(query.limit(limit).offset(offset))).all()
     stock = await stock_map(db, [p.id for p in products])
@@ -324,9 +327,52 @@ async def update_product(
 async def delete_product(product_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
     """Deletes a product entered by mistake. To stop selling it, set status to 'hidden' instead."""
     product = await get_product_or_404(db, ctx.tenant_id, product_id)
+    images = list(product.images)
     await db.delete(product)
     await db.commit()
+    for url in images:
+        delete_product_image(ctx.tenant_id, url)
     return Response(status_code=204)
+
+
+# ---------- photos ----------
+
+MAX_IMAGES = 10
+
+
+@router.post("/t/{tenant_id}/products/{product_id}/images", response_model=ProductOut, status_code=201)
+async def upload_product_image(
+    product_id: uuid.UUID,
+    file: UploadFile = File(description="JPG, PNG or WebP, max 8 MB"),
+    ctx: TenantContext = Depends(_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a photo to the product (saved as 800px + 200px thumbnail). The first photo is the main one."""
+    product = await get_product_or_404(db, ctx.tenant_id, product_id)
+    if len(product.images) >= MAX_IMAGES:
+        raise HTTPException(409, f"A product can have at most {MAX_IMAGES} photos")
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    url = save_product_image(ctx.tenant_id, data)
+    product.images = [*product.images, url]
+    await db.commit()
+    stock = await stock_map(db, [product.id])
+    return product_out(product, stock.get(product.id, 0))
+
+
+@router.delete("/t/{tenant_id}/products/{product_id}/images/{index}", response_model=ProductOut)
+async def delete_product_image_at(
+    product_id: uuid.UUID, index: int, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    """Remove the photo at this position (0 = main photo)."""
+    product = await get_product_or_404(db, ctx.tenant_id, product_id)
+    if not 0 <= index < len(product.images):
+        raise HTTPException(404, "Photo not found")
+    url = product.images[index]
+    product.images = [u for i, u in enumerate(product.images) if i != index]
+    await db.commit()
+    delete_product_image(ctx.tenant_id, url)
+    stock = await stock_map(db, [product.id])
+    return product_out(product, stock.get(product.id, 0))
 
 
 # ---------- pack sizes ----------
@@ -397,3 +443,65 @@ async def delete_unit(unit_id: uuid.UUID, ctx: TenantContext = Depends(_staff), 
     product.units.remove(unit)
     _ensure_one_default(product.units)
     await db.commit()
+
+
+# ---------- Excel import ----------
+
+
+class ImportRowError(BaseModel):
+    row: int
+    message: str
+
+
+class ImportOut(BaseModel):
+    dry_run: bool
+    created: int
+    updated: int
+    errors: list[ImportRowError]
+    saved: bool
+
+
+@router.get("/t/{tenant_id}/product-import/template")
+async def download_import_template(
+    category_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    """Excel sheet for one category, with that category's feature columns and dropdowns."""
+    await get_category_or_404(db, ctx.tenant_id, category_id)
+    tree = await load_tree(db, ctx.tenant_id)
+    path = tree.path_names(category_id)
+    defs = await effective_attributes(db, ctx.tenant_id, category_id, tree)
+    content = excel.build_template(path, defs)
+    filename = "products-" + "-".join(p.lower().replace(" ", "_") for p in path) + ".xlsx"
+    return Response(
+        content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/t/{tenant_id}/product-import", response_model=ImportOut)
+async def import_products(
+    category_id: uuid.UUID,
+    dry_run: bool = True,
+    file: UploadFile = File(description="The filled-in .xlsx template"),
+    ctx: TenantContext = Depends(_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check (dry_run=true, the default) or save products from the Excel template.
+
+    Nothing is saved if any row has a problem; the response lists every problem with its row number.
+    """
+    await get_category_or_404(db, ctx.tenant_id, category_id)
+    defs = await effective_attributes(db, ctx.tenant_id, category_id)
+    data = await file.read(excel.MAX_FILE_BYTES + 1)
+    result = await excel.import_products(
+        db, tenant_id=ctx.tenant_id, category_id=category_id, defs=defs, data=data,
+        user_id=ctx.user.id, dry_run=dry_run,
+    )
+    return ImportOut(
+        dry_run=dry_run,
+        created=result.created,
+        updated=result.updated,
+        errors=[ImportRowError(**e) for e in result.errors],
+        saved=not dry_run and not result.errors,
+    )
