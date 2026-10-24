@@ -16,9 +16,9 @@
 
 | Milestone | Status | Started | Finished |
 | --- | --- | --- | --- |
-| M0 Workspace setup | In progress | 24 Oct 2026 | |
+| M0 Workspace setup | Done (phone check pending) | 24 Oct 2026 | |
 | M1 Accounts, distributors, shops | Backend done | 24 Oct 2026 | |
-| M2 Catalog, features, pack sizes, stock | Not started | | |
+| M2 Catalog, features, pack sizes, stock | In progress | 24 Oct 2026 | |
 | M3 Cart, orders, approval, dispatch, bill | Not started | | |
 | M4 Agents | Not started | | |
 | M5 Mobile app: shop owner | Not started | | |
@@ -28,10 +28,10 @@
 
 ## Next up
 
-1. Allow ports 8000 and 8081 through the Windows firewall (local network only), install Expo Go on the phone,
-   run backend with `--host 0.0.0.0` and `npx expo start` in `mobile/`, scan the QR: phone shows "API OK". Closes M0.
-2. Seed uncle's real distributor account (M1-09) and try M1 in Swagger at /docs.
-3. M2: catalog (categories, attributes, products, pack sizes, stock, search).
+1. Confirm the phone shows "API OK" in Expo Go (closes M0-06).
+2. M2-06 image upload + thumbnails, M2-10 Excel import.
+3. M2-11: create uncle's real distributor account and enter his first 20 products.
+4. Then M3 (cart, orders, approval, dispatch, bill).
 
 ## Blockers
 
@@ -70,15 +70,15 @@
 
 | ID | Task | Status | Notes |
 | --- | --- | --- | --- |
-| M2-01 | Tables: categories, attribute_definitions, products, product_units, stock, stock_ledger | [ ] | |
-| M2-02 | FMCG starter template (categories + attributes) loaded for a new tenant | [ ] | |
-| M2-03 | Category and attribute CRUD (with inheritance from parent) | [ ] | |
-| M2-04 | Product CRUD with attribute validation | [ ] | |
-| M2-05 | Pack sizes (units) with MOQ and step | [ ] | |
+| M2-01 | Tables: categories, attribute_definitions, products, product_units, stock, stock_ledger | [x] | Migration 0002 (+ pg_trgm). Products also have sku, mrp; pack sizes have max_qty (D17) |
+| M2-02 | FMCG starter template (categories + attributes) loaded for a new tenant | [x] | app/modules/catalog/templates.py; loaded by create_tenant |
+| M2-03 | Category and attribute CRUD (with inheritance from parent) | [x] | Max 3 levels; feature keys unique along parent/child line; deleting a feature strips it from products |
+| M2-04 | Product CRUD with attribute validation | [x] | Values checked for type/required/options; select options case-insensitive |
+| M2-05 | Pack sizes (units) with MOQ and step | [x] | Exactly one default pack size kept automatically |
 | M2-06 | Image upload + thumbnails | [ ] | |
-| M2-07 | Stock adjust endpoint writing the ledger | [ ] | |
-| M2-08 | Shop catalog endpoints: categories, list with filters, detail | [ ] | |
-| M2-09 | Search with pg_trgm over name, brand, aliases (Hindi/English/Hinglish) | [ ] | |
+| M2-07 | Stock adjust endpoint writing the ledger | [x] | change (pieces or pack size) or set_to; row lock; can't go below 0; concurrency test |
+| M2-08 | Shop catalog endpoints: categories, list with filters, detail | [x] | Category tree, filters endpoint, list with q/category/brand/filters/in_stock_only, detail |
+| M2-09 | Search with pg_trgm over name, brand, aliases (Hindi/English/Hinglish) | [x] | Substring or word_similarity >= 0.4 on name+brand+aliases. cheeni/chini/शक्कर/suger all work |
 | M2-10 | Excel import per category (template download + upload) | [ ] | |
 | M2-11 | Enter 20 real products from uncle's catalog | [ ] | |
 
@@ -165,3 +165,4 @@
 | 24 Oct 2026 | Backend skeleton, docker-compose, .gitignore, CLAUDE.md handoff written | Verify backend on laptop, then M0-06 mobile |
 | 24 Oct 2026 | Docker updated and working; Postgres up. M1 backend built: OTP login, refresh tokens, /me, shop profile, join by code, distributor approve/block/assign agent, tenant isolation. 31 tests pass; full flow checked on live server | Git commit, Node 22, M0-06 mobile |
 | 24 Oct 2026 | Node 22 installed. Expo SDK 58 mobile app created with an API health screen; all checks pass. Firewall change needs the user's OK | Phone test, then M2 |
+| 24 Oct 2026 | M2 catalog backend: categories + inherited features, FMCG template, products, pack sizes, stock + ledger, shop catalog with search and filters. 56 tests pass; live search check OK | Images, Excel import, real products |

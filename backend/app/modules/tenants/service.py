@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.models import User
+from app.modules.catalog.templates import apply_fmcg_template
 from app.modules.tenants.models import Tenant, TenantMember
 
 # No 0/O, 1/I/L, so codes are easy to read out over the phone.
@@ -38,12 +39,15 @@ async def create_tenant(
     owner_phone: str,
     owner_name: str | None = None,
     join_code: str | None = None,
+    starter_template: bool = True,
 ) -> Tenant:
-    """Create a distributor and make the given phone its owner. Caller commits."""
+    """Create a distributor, make the given phone its owner, load the FMCG starter categories. Caller commits."""
     owner = await get_or_create_user(db, owner_phone, owner_name)
     tenant = Tenant(name=name, join_code=(join_code or await unique_join_code(db)).upper())
     db.add(tenant)
     await db.flush()
     db.add(TenantMember(tenant_id=tenant.id, user_id=owner.id, role="owner"))
+    if starter_template:
+        await apply_fmcg_template(db, tenant.id)
     await db.flush()
     return tenant

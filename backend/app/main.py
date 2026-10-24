@@ -7,6 +7,9 @@ from app import models as _models  # noqa: F401  (registers all tables)
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.modules.auth.router import router as auth_router
+from app.modules.catalog.router_catalog import router as catalog_router
+from app.modules.catalog.router_manage import router as catalog_manage_router
+from app.modules.inventory.router import router as inventory_router
 from app.modules.shops.router import router as shops_router
 from app.modules.tenants.router import router as tenants_router
 
@@ -31,6 +34,9 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(shops_router)
 app.include_router(tenants_router)
+app.include_router(catalog_manage_router)
+app.include_router(catalog_router)
+app.include_router(inventory_router)
 
 
 @app.get("/", include_in_schema=False)

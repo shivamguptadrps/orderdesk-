@@ -20,3 +20,4 @@ Taken on 24 Oct 2026. Change only by adding a new dated line, never by silent ed
 | D14 | Approval | Every order waits for distributor approval; distributor can edit quantities before approving |
 | D15 | Hosting | Oracle Cloud Always Free to start; access by IP during testing, free DuckDNS subdomain + HTTPS before real shops use it |
 | D16 | Product features | Category defines its attribute template (sugar: weight, grain; mobile: RAM, storage). Stored as JSONB on product |
+| D17 | Product fields | 24 Oct 2026: added optional `sku` (unique per distributor, for Excel re-import and photo matching), optional `mrp` (display only, not tax), and optional `max_qty` per pack size |
