@@ -1,0 +1,49 @@
+import secrets
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.auth.models import User
+from app.modules.tenants.models import Tenant, TenantMember
+
+# No 0/O, 1/I/L, so codes are easy to read out over the phone.
+_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+
+def random_join_code(length: int = 6) -> str:
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(length))
+
+
+async def unique_join_code(db: AsyncSession) -> str:
+    for _ in range(20):
+        code = random_join_code()
+        if await db.scalar(select(Tenant.id).where(Tenant.join_code == code)) is None:
+            return code
+    raise RuntimeError("Could not generate a unique join code")
+
+
+async def get_or_create_user(db: AsyncSession, phone: str, name: str | None = None) -> User:
+    user = await db.scalar(select(User).where(User.phone == phone))
+    if user is None:
+        user = User(phone=phone, name=name)
+        db.add(user)
+        await db.flush()
+    return user
+
+
+async def create_tenant(
+    db: AsyncSession,
+    *,
+    name: str,
+    owner_phone: str,
+    owner_name: str | None = None,
+    join_code: str | None = None,
+) -> Tenant:
+    """Create a distributor and make the given phone its owner. Caller commits."""
+    owner = await get_or_create_user(db, owner_phone, owner_name)
+    tenant = Tenant(name=name, join_code=(join_code or await unique_join_code(db)).upper())
+    db.add(tenant)
+    await db.flush()
+    db.add(TenantMember(tenant_id=tenant.id, user_id=owner.id, role="owner"))
+    await db.flush()
+    return tenant

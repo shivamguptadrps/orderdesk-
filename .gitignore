@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Env and secrets
+.env
+*.pem
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+*.apk
+*.aab
+
+# Uploads in dev
+backend/uploads/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
