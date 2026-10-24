@@ -35,6 +35,11 @@ b2b-order-app/
 
 ## Quick start (filled in as milestones complete)
 
+**Every day:** open Docker Desktop, then double-click `start-dev.cmd`. It starts the database, the backend
+and Expo in their own windows. Scan the QR code in the Expo window with Expo Go.
+
+**First time setup** (once):
+
 Run these in PowerShell from the `b2b-order-app` folder.
 
 ```
