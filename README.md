@@ -69,8 +69,17 @@ If PowerShell refuses to run `Activate.ps1`, run once:
 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
 ```
-# 3. mobile (added in M0-06)
+# 3. mobile
 cd mobile
 npm install
+copy .env.example .env.local     # then set your laptop's Wi-Fi IP in it (ipconfig)
 npx expo start
+```
+
+Install **Expo Go** from the Play Store, keep the phone on the same Wi-Fi, and scan the QR code.
+For the phone to reach the laptop, run the backend with `--host 0.0.0.0` and allow ports 8000 and 8081
+through Windows Firewall for the local network (one-time, admin PowerShell):
+
+```
+New-NetFirewallRule -DisplayName "OrderDesk dev (8000, 8081) - local network only" -Direction Inbound -Protocol TCP -LocalPort 8000,8081 -RemoteAddress LocalSubnet -Action Allow
 ```

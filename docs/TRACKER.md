@@ -28,10 +28,10 @@
 
 ## Next up
 
-1. First git commit (M0-03).
-2. Install Node 22 LTS, then M0-06: create `mobile/` with Expo, one screen showing "API OK".
-3. Seed uncle's real distributor account (M1-09) and test M1 in Swagger at /docs.
-4. Then M2 (catalog).
+1. Allow ports 8000 and 8081 through the Windows firewall (local network only), install Expo Go on the phone,
+   run backend with `--host 0.0.0.0` and `npx expo start` in `mobile/`, scan the QR: phone shows "API OK". Closes M0.
+2. Seed uncle's real distributor account (M1-09) and try M1 in Swagger at /docs.
+3. M2: catalog (categories, attributes, products, pack sizes, stock, search).
 
 ## Blockers
 
@@ -46,11 +46,11 @@
 | ID | Task | Status | Notes |
 | --- | --- | --- | --- |
 | M0-01 | Workspace folder, README, plan, tracker, decisions | [x] | 24 Oct 2026 |
-| M0-02 | Install Python 3.12, Node 20, Docker Desktop, Git, Android emulator or Expo Go | [~] | Python 3.11.4 (works), Docker Desktop updated 4.21→4.96.3. Node is v21 (not LTS): install Node 22 LTS before M0-06 |
-| M0-03 | `git init`, `.gitignore`, first commit | [~] | git init done (branch main); first commit pending |
+| M0-02 | Install Python 3.12, Node 20, Docker Desktop, Git, Android emulator or Expo Go | [x] | Python 3.11.4, Node 22.23.4 LTS, Docker Desktop 4.96.3, Git 2.41. Expo Go on phone still to install |
+| M0-03 | `git init`, `.gitignore`, first commit | [x] | First commit 11c7097 |
 | M0-04 | `deploy/docker-compose.yml` with PostgreSQL 16 | [x] | Postgres 16 running in Docker |
 | M0-05 | Backend skeleton: FastAPI `/health`, settings, Alembic | [x] | Runs on laptop; /health shows db ok |
-| M0-06 | Mobile skeleton: Expo + TS + Router, calls `/health` | [ ] | |
+| M0-06 | Mobile skeleton: Expo + TS + Router, calls `/health` | [~] | Expo SDK 58 app in mobile/ (src/app/index.tsx calls /health). Typecheck, lint, expo-doctor, Android bundle OK. Not yet opened on phone: needs firewall rule for ports 8000/8081 |
 
 ## M1 — Accounts, distributors, shops
 
@@ -164,3 +164,4 @@
 | 24 Oct 2026 | Spec, prototype, workspace, plan and tracker created | M0-02: install tools |
 | 24 Oct 2026 | Backend skeleton, docker-compose, .gitignore, CLAUDE.md handoff written | Verify backend on laptop, then M0-06 mobile |
 | 24 Oct 2026 | Docker updated and working; Postgres up. M1 backend built: OTP login, refresh tokens, /me, shop profile, join by code, distributor approve/block/assign agent, tenant isolation. 31 tests pass; full flow checked on live server | Git commit, Node 22, M0-06 mobile |
+| 24 Oct 2026 | Node 22 installed. Expo SDK 58 mobile app created with an API health screen; all checks pass. Firewall change needs the user's OK | Phone test, then M2 |
