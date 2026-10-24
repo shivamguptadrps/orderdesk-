@@ -33,6 +33,11 @@ app.include_router(shops_router)
 app.include_router(tenants_router)
 
 
+@app.get("/", include_in_schema=False)
+async def root() -> dict:
+    return {"app": "OrderDesk API", "health": "/health", "docs": "/docs"}
+
+
 @app.get("/health", tags=["health"])
 async def health(db: AsyncSession = Depends(get_db)) -> dict:
     """Used by the mobile app to show 'API OK'. Also checks the database."""
