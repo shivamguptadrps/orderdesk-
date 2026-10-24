@@ -16,7 +16,7 @@
 
 | Milestone | Status | Started | Finished |
 | --- | --- | --- | --- |
-| M0 Workspace setup | Done (phone check pending) | 24 Oct 2026 | |
+| M0 Workspace setup | Done | 24 Oct 2026 | 24 Oct 2026 |
 | M1 Accounts, distributors, shops | Backend done | 24 Oct 2026 | |
 | M2 Catalog, features, pack sizes, stock | Done (real products pending) | 24 Oct 2026 | 24 Oct 2026 |
 | M3 Cart, orders, approval, dispatch, bill | Done | 24 Oct 2026 | 24 Oct 2026 |
@@ -28,9 +28,8 @@
 
 ## Next up
 
-1. Confirm the phone shows "API OK" in Expo Go (closes M0-06).
-2. M4: agents (add by phone, assigned shops, order on behalf of a shop, onboard a shop).
-3. Later: uncle's real account + real products (replace the demo catalog).
+1. M4: agents (add by phone, assigned shops, order on behalf of a shop, onboard a shop).
+2. Later: uncle's real account + real products (replace the demo catalog).
 
 ## Blockers
 
@@ -49,7 +48,7 @@
 | M0-03 | `git init`, `.gitignore`, first commit | [x] | First commit 11c7097 |
 | M0-04 | `deploy/docker-compose.yml` with PostgreSQL 16 | [x] | Postgres 16 running in Docker |
 | M0-05 | Backend skeleton: FastAPI `/health`, settings, Alembic | [x] | Runs on laptop; /health shows db ok |
-| M0-06 | Mobile skeleton: Expo + TS + Router, calls `/health` | [~] | Expo SDK 58 app in mobile/ (src/app/index.tsx calls /health). Typecheck, lint, expo-doctor, Android bundle OK. Not yet opened on phone: needs firewall rule for ports 8000/8081 |
+| M0-06 | Mobile skeleton: Expo + TS + Router, calls `/health` | [x] | Verified 24 Oct 2026 on an iPhone with Expo Go: "API OK". iPhone Expo Go needs the laptop logged in too (`npx.cmd expo login --no-browser`) |
 
 ## M1 — Accounts, distributors, shops
 
@@ -167,3 +166,4 @@
 | 24 Oct 2026 | M2 catalog backend: categories + inherited features, FMCG template, products, pack sizes, stock + ledger, shop catalog with search and filters. 56 tests pass; live search check OK | Images, Excel import, real products |
 | 24 Oct 2026 | M2 done: photo upload + thumbnails, Excel template/import, 20 dummy products with photos, stricter search. 68 tests pass; live check over Wi-Fi OK | M3 |
 | 24 Oct 2026 | M3 done: cart, orders, approval with edits, dispatch with locked stock deduction, delivery, bill PDF, reorder. 95 tests pass; full flow checked live over Wi-Fi | M4 agents |
+| 24 Oct 2026 | Phone shows API OK (iPhone, Expo Go). Added start-dev.cmd. M0 closed | M4 agents |
