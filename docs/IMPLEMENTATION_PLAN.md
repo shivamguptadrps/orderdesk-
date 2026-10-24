@@ -15,7 +15,7 @@ Rough time for one developer working part-time: 10–12 weeks. Estimates are gue
 | M2 Catalog | ✅ Done | 20 demo products; uncle's real catalog still to enter |
 | M3 Cart, orders, dispatch, bill | ✅ Done | |
 | M4 Agents | ✅ Done | Also: staff management, distributor settings, staff ordering for a shop |
-| M5 Shop owner app | Next | Whole backend for it exists; this is screens only |
+| M5 Shop owner app | ✅ Built (phone check pending) | Includes agent mode (M5-10). Distributor screens are M6 |
 | M6 Distributor tools | Not started | Backend for team, shops, products, stock, orders, settings already exists |
 | M7 Related products, notifications, polish | Not started | |
 | M8 Deploy and pilot | Not started | |

@@ -21,15 +21,16 @@
 | M2 Catalog, features, pack sizes, stock | Done (real products pending) | 24 Oct 2026 | 24 Oct 2026 |
 | M3 Cart, orders, approval, dispatch, bill | Done | 24 Oct 2026 | 24 Oct 2026 |
 | M4 Agents | Done | 24 Oct 2026 | 24 Oct 2026 |
-| M5 Mobile app: shop owner | Not started | | |
+| M5 Mobile app: shop owner | Built, phone check pending | 24 Oct 2026 | |
 | M6 Distributor tools | Not started | | |
 | M7 Related products, notifications, polish | Not started | | |
 | M8 Deploy and pilot | Not started | | |
 
 ## Next up
 
-1. M5: shop owner app screens (login, shop profile, add distributor, catalog, cart, orders, bill), then agent mode (M5-10).
-2. Later: uncle's real account + real products (replace the demo catalog); Meta WhatsApp number for real OTPs.
+1. Test M5 on the phone (shop owner 9876543210, agent 9111111111) and fix what feels wrong.
+2. M6: distributor mode in the app (orders queue, approve/edit/dispatch, products, stock, shops, team, join code/QR).
+3. Later: uncle's real account + real products; Meta WhatsApp number for real OTPs.
 
 ## Blockers
 
@@ -107,16 +108,16 @@
 
 | ID | Task | Status | Notes |
 | --- | --- | --- | --- |
-| M5-01 | API client, auth store, SecureStore token | [ ] | |
-| M5-02 | Login + OTP screens | [ ] | |
-| M5-03 | Shop profile screen | [ ] | |
-| M5-04 | Add distributor by code + QR scan + pending state | [ ] | |
-| M5-05 | Distributor switcher with branding | [ ] | |
-| M5-06 | Home: categories, search, product grid | [ ] | |
-| M5-07 | Product page: features table, pack sizes, qty stepper | [ ] | |
-| M5-08 | Cart and place order | [ ] | |
-| M5-09 | My orders, status timeline, bill PDF share, reorder | [ ] | |
-| M5-10 | Agent mode: shop picker, order on behalf | [ ] | |
+| M5-01 | API client, auth store, SecureStore token | [x] | src/lib/api.ts (token, single-flight refresh, readable errors), auth + session stores in SecureStore, React Query |
+| M5-02 | Login + OTP screens | [x] | Phone + OTP; dev builds show the code on screen (backend returns it only with APP_ENV=dev + OTP_MODE=log) |
+| M5-03 | Shop profile screen | [x] | Create on first login, edit from Profile |
+| M5-04 | Add distributor by code + QR scan + pending state | [x] | Code entry + QR scan (expo-camera); pending / blocked messages |
+| M5-05 | Distributor switcher with branding | [x] | Header switcher + 'Ordering from' modal; brand colour on the name. Logos not shown yet |
+| M5-06 | Home: categories, search, product grid | [x] | Category + sub-category chips, debounced search (Hindi/Hinglish), 2-column grid with photos, out-of-stock badge |
+| M5-07 | Product page: features table, pack sizes, qty stepper | [x] | Photo gallery, pack size cards (price per piece, min/step), stepper that respects min/step/max, features table |
+| M5-08 | Cart and place order | [x] | Line problems in red, qty edit, remove, note, total, place order -> order screen |
+| M5-09 | My orders, status timeline, bill PDF share, reorder | [x] | List with status filter (all distributors), timeline, item changes, bill PDF share (WhatsApp), reorder, cancel |
+| M5-10 | Agent mode: shop picker, order on behalf | [x] | Agent mode: choose distributor + shop, separate cart per shop, orders for my shops, sign up a shop |
 
 ## M6 — Distributor tools
 
@@ -168,3 +169,4 @@
 | 24 Oct 2026 | M3 done: cart, orders, approval with edits, dispatch with locked stock deduction, delivery, bill PDF, reorder. 95 tests pass; full flow checked live over Wi-Fi | M4 agents |
 | 24 Oct 2026 | Phone shows API OK (iPhone, Expo Go). Added start-dev.cmd. M0 closed | M4 agents |
 | 24 Oct 2026 | M4 done: team management, agent shops, ordering for a shop (agent/admin), shop sign-up by agent with optional auto-approve, settings. 111 tests pass; live agent flow checked. Plan updated with status and as-built notes | M5 screens |
+| 24 Oct 2026 | M5 app built: login, shop setup, distributors (code/QR), catalog + search, product page, cart, orders, bill share, reorder/cancel, profile, agent mode. tsc + lint + expo-doctor clean, iOS bundle builds | Phone test, then M6 |

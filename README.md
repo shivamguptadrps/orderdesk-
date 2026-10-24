@@ -94,3 +94,14 @@ through Windows Firewall for the local network (one-time, admin PowerShell):
 ```
 New-NetFirewallRule -DisplayName "OrderDesk dev (8000, 8081) - local network only" -Direction Inbound -Protocol TCP -LocalPort 8000,8081 -RemoteAddress LocalSubnet -Action Allow
 ```
+
+## Test accounts (local demo data)
+
+In dev mode the login screen shows the OTP itself ("Test mode: your code is ...").
+
+| Phone | Who | What you can do |
+| --- | --- | --- |
+| 9876543210 | Shop owner, Sharma Kirana | Order from Demo Distributor (join code `DEMO01`) |
+| 9111111111 | Ravi, agent of Demo Distributor | Pick a shop, order for it, sign up new shops |
+| 9000000001 | Owner of Demo Distributor | Distributor screens come in M6; use http://localhost:8000/docs meanwhile |
+| any other | New user | Create a shop, join with `DEMO01` (approve it from /docs until M6) |

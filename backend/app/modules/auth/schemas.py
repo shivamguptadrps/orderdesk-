@@ -22,6 +22,7 @@ class OtpRequestIn(PhoneIn):
 class OtpRequestOut(BaseModel):
     sent: bool
     expires_in_seconds: int
+    dev_code: str | None = None  # only in local development (APP_ENV=dev, OTP_MODE=log)
 
 
 class OtpVerifyIn(PhoneIn):

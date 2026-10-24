@@ -77,6 +77,9 @@ first for his uncle, an FMCG distributor in India; other distributors will be on
   in `app/assets/fonts`, no system libraries needed).
 - M4 done: team in `tenants/router.py` (/members, /settings); agent shops + shop sign-up in `shops/router.py`;
   ordering for a shop via `get_buyer` in `orders/router.py` (`?shop_id=`, agent must be assigned).
+- M5 app: `mobile/src/app` (Expo Router; tabs in `(tabs)/`), shared code in `mobile/src/lib` (api, auth, session,
+  data hooks incl. `useWorkspace` = current distributor + shop/agent mode). typedRoutes is off. Check with
+  `npx tsc --noEmit`, `npx expo lint`, `npx expo-doctor`.
 - Search: exact word matches first; fuzzy `word_similarity` only when nothing matches exactly.
 - Windows tooling note: curl from Git Bash garbles Hindi text; test Hindi with Python/httpx.
 - Next: see `docs/TRACKER.md` "Next up" (git commit, Node 22 LTS, M0-06 mobile).

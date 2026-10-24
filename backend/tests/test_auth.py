@@ -115,3 +115,22 @@ async def test_me_lists_memberships(client, login, make_tenant):
     headers = await login("9000000001")
     me = (await client.get("/me", headers=headers)).json()
     assert me["memberships"] == [{"tenant_id": str(tenant.id), "tenant_name": "Gupta Traders", "role": "owner"}]
+
+
+async def test_dev_code_only_in_local_development(client, monkeypatch):
+    from app.core.config import get_settings
+
+    res = await _request(client)
+    assert res.json()["dev_code"] is None  # tests run with APP_ENV=test
+    monkeypatch.setattr(get_settings(), "app_env", "dev")
+    res = await _request(client, "9123456789")
+    assert res.json()["dev_code"] == TEST_OTP
+    monkeypatch.setattr(get_settings(), "otp_mode", "whatsapp")
+    monkeypatch.setattr("app.modules.auth.router.send_otp", _no_send)
+    res = await _request(client, "9123456780")
+    assert res.json()["dev_code"] is None
+
+
+async def _no_send(phone, code):
+    return None
+
