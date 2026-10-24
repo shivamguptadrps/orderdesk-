@@ -20,6 +20,8 @@ class Tenant(UUIDPk, Timestamps, Base):
     logo_url: Mapped[str | None] = mapped_column(String(500))
     brand_color: Mapped[str | None] = mapped_column(String(7))
     status: Mapped[str] = mapped_column(String(20), default="active", server_default="active")
+    # Next order number for this distributor. Taken with a row lock, so numbers have no gaps or repeats.
+    next_order_no: Mapped[int] = mapped_column(default=1, server_default="1")
 
 
 class TenantMember(UUIDPk, Timestamps, Base):

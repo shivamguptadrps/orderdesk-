@@ -72,6 +72,9 @@ first for his uncle, an FMCG distributor in India; other distributors will be on
 - M2 done: catalog module (`app/modules/catalog`), stock (`app/modules/inventory`, change stock only via
   `inventory.service.change_stock`, which locks the row and writes the ledger), photos in `app/core/media.py`
   (local `backend/uploads`, served at `/media`), Excel import in `catalog/excel.py`.
+- M3 done: `app/modules/orders` (service.py holds all rules). Cart and order rows are locked (`FOR UPDATE`)
+  before any change; dispatch locks stock rows sorted by product_id. Bill PDF: `orders/bill.py` (fpdf2 + Noto fonts
+  in `app/assets/fonts`, no system libraries needed).
 - Search: exact word matches first; fuzzy `word_similarity` only when nothing matches exactly.
 - Windows tooling note: curl from Git Bash garbles Hindi text; test Hindi with Python/httpx.
 - Next: see `docs/TRACKER.md` "Next up" (git commit, Node 22 LTS, M0-06 mobile).

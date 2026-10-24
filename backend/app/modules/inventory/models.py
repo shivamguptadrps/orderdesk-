@@ -41,6 +41,6 @@ class StockLedger(UUIDPk, CreatedAt, Base):
     change_pieces: Mapped[int]
     balance_after: Mapped[int]
     reason: Mapped[str] = mapped_column(String(10))
-    ref_order_id: Mapped[uuid.UUID | None]  # FK to orders added in M3
+    ref_order_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("orders.id", ondelete="SET NULL"), index=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     note: Mapped[str | None] = mapped_column(String(300))

@@ -43,6 +43,7 @@ from app.modules.catalog.service import (
     validate_attributes,
 )
 from app.modules.inventory.models import Stock
+from app.modules.orders.models import OrderItem
 from app.modules.inventory.service import change_stock, stock_map
 
 router = APIRouter(tags=["catalog: manage"])
@@ -327,6 +328,8 @@ async def update_product(
 async def delete_product(product_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
     """Deletes a product entered by mistake. To stop selling it, set status to 'hidden' instead."""
     product = await get_product_or_404(db, ctx.tenant_id, product_id)
+    if await db.scalar(select(OrderItem.id).where(OrderItem.product_id == product.id).limit(1)):
+        raise HTTPException(409, "This product is in past orders, so it can't be deleted. Set its status to 'hidden' instead.")
     images = list(product.images)
     await db.delete(product)
     await db.commit()

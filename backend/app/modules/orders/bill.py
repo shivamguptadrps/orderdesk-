@@ -1,0 +1,133 @@
+"""Simple bill PDF: items, qty, rate, amount, total. No tax (D8). Hindi names render via Noto Devanagari."""
+
+from datetime import timedelta, timezone
+from decimal import Decimal
+from pathlib import Path
+
+from fpdf import FPDF
+from fpdf.fonts import FontFace
+
+from app.modules.orders.models import Order
+
+FONTS = Path(__file__).resolve().parents[2] / "assets" / "fonts"
+IST = timezone(timedelta(hours=5, minutes=30))  # India has no daylight saving
+
+STATUS_LABEL = {
+    "pending": "Waiting for approval",
+    "approved": "Approved",
+    "dispatched": "Dispatched",
+    "delivered": "Delivered",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+}
+
+
+def inr(amount: Decimal) -> str:
+    """1234567.5 -> '₹12,34,567.50' (Indian digit grouping)."""
+    sign = "-" if amount < 0 else ""
+    whole, frac = f"{abs(amount):.2f}".split(".")
+    if len(whole) > 3:
+        head, tail = whole[:-3], whole[-3:]
+        groups = []
+        while len(head) > 2:
+            groups.insert(0, head[-2:])
+            head = head[:-2]
+        if head:
+            groups.insert(0, head)
+        whole = ",".join(groups) + "," + tail
+    return f"{sign}₹{whole}.{frac}"
+
+
+def pack_label(unit_name: str, pieces: int) -> str:
+    """'Carton' + 24 -> 'Carton (24 pcs)'; names that already state the count ('Bag (30)') stay as they are."""
+    if pieces == 1 or str(pieces) in unit_name:
+        return unit_name
+    return f"{unit_name} ({pieces} pcs)"
+
+
+def _pdf() -> FPDF:
+    pdf = FPDF(format="A4")
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_font("Noto", "", FONTS / "NotoSans-Regular.ttf")
+    pdf.add_font("Noto", "B", FONTS / "NotoSans-Bold.ttf")
+    pdf.add_font("NotoDeva", "", FONTS / "NotoSansDevanagari-Regular.ttf")
+    pdf.add_font("NotoDeva", "B", FONTS / "NotoSansDevanagari-Bold.ttf")
+    pdf.set_fallback_fonts(["NotoDeva"])
+    pdf.set_text_shaping(True)  # correct joining of Hindi letters
+    return pdf
+
+
+def render_bill(order: Order, distributor_name: str, shop_phone: str | None) -> bytes:
+    pdf = _pdf()
+    pdf.set_title(f"{distributor_name} - Order {order.order_no}")
+    pdf.add_page()
+    width = pdf.epw
+
+    pdf.set_font("Noto", "B", 18)
+    pdf.cell(width, 9, distributor_name, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Noto", "", 9)
+    pdf.set_text_color(110, 110, 110)
+    pdf.cell(width, 5, "ORDER BILL  ·  Not a tax invoice", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(4)
+
+    placed = order.created_at.astimezone(IST)
+    half = width / 2
+    y = pdf.get_y()
+    pdf.set_font("Noto", "B", 10)
+    pdf.cell(half, 6, "Bill to", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Noto", "", 10)
+    pdf.multi_cell(half - 4, 5, order.shop_name, new_x="LMARGIN", new_y="NEXT")
+    pdf.multi_cell(half - 4, 5, order.shop_address, new_x="LMARGIN", new_y="NEXT")
+    if shop_phone:
+        pdf.cell(half, 5, f"Phone: {shop_phone}", new_x="LMARGIN", new_y="NEXT")
+    left_bottom = pdf.get_y()
+
+    pdf.set_xy(pdf.l_margin + half, y)
+    for label, value in (
+        ("Order no.", f"#{order.order_no}"),
+        ("Date", placed.strftime("%d %b %Y, %I:%M %p")),
+        ("Status", STATUS_LABEL.get(order.status, order.status)),
+    ):
+        pdf.set_x(pdf.l_margin + half)
+        pdf.set_font("Noto", "B", 10)
+        pdf.cell(28, 6, label)
+        pdf.set_font("Noto", "", 10)
+        pdf.cell(half - 28, 6, value, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_y(max(left_bottom, pdf.get_y()) + 6)
+
+    lines = [i for i in order.items if i.qty_effective > 0]
+    pdf.set_font("Noto", "", 10)
+    heading = FontFace(emphasis="BOLD", fill_color=(235, 241, 250))
+    with pdf.table(
+        col_widths=(8, 52, 20, 10, 18, 22),
+        text_align=("RIGHT", "LEFT", "LEFT", "RIGHT", "RIGHT", "RIGHT"),
+        headings_style=heading,
+        line_height=6,
+        padding=1.5,
+    ) as table:
+        table.row(["#", "Item", "Pack", "Qty", "Rate", "Amount"])
+        for n, item in enumerate(lines, start=1):
+            pack = pack_label(item.unit_name, item.pieces_per_unit)
+            table.row([str(n), item.product_name, pack, str(item.qty_effective), inr(item.rate), inr(item.line_total)])
+
+    pdf.ln(3)
+    pdf.set_font("Noto", "B", 12)
+    pdf.cell(width - 45, 8, "Grand total", align="R")
+    pdf.cell(45, 8, inr(order.items_total), align="R", new_x="LMARGIN", new_y="NEXT")
+
+    if order.status in ("pending", "approved"):
+        pdf.set_font("Noto", "", 8)
+        pdf.set_text_color(110, 110, 110)
+        pdf.multi_cell(width, 4, "Quantities may change until the order is dispatched.", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
+    if order.note:
+        pdf.ln(2)
+        pdf.set_font("Noto", "", 9)
+        pdf.multi_cell(width, 5, f"Note: {order.note}", new_x="LMARGIN", new_y="NEXT")
+
+    pdf.ln(6)
+    pdf.set_font("Noto", "", 8)
+    pdf.set_text_color(110, 110, 110)
+    pdf.multi_cell(width, 4, "Payment is settled directly with the distributor. Generated by OrderDesk.", new_x="LMARGIN", new_y="NEXT")
+    return bytes(pdf.output())

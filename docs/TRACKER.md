@@ -19,7 +19,7 @@
 | M0 Workspace setup | Done (phone check pending) | 24 Oct 2026 | |
 | M1 Accounts, distributors, shops | Backend done | 24 Oct 2026 | |
 | M2 Catalog, features, pack sizes, stock | Done (real products pending) | 24 Oct 2026 | 24 Oct 2026 |
-| M3 Cart, orders, approval, dispatch, bill | Not started | | |
+| M3 Cart, orders, approval, dispatch, bill | Done | 24 Oct 2026 | 24 Oct 2026 |
 | M4 Agents | Not started | | |
 | M5 Mobile app: shop owner | Not started | | |
 | M6 Distributor tools | Not started | | |
@@ -29,7 +29,7 @@
 ## Next up
 
 1. Confirm the phone shows "API OK" in Expo Go (closes M0-06).
-2. M3: cart, orders, approval, dispatch (stock deduction), simple bill PDF.
+2. M4: agents (add by phone, assigned shops, order on behalf of a shop, onboard a shop).
 3. Later: uncle's real account + real products (replace the demo catalog).
 
 ## Blockers
@@ -85,15 +85,15 @@
 
 | ID | Task | Status | Notes |
 | --- | --- | --- | --- |
-| M3-01 | Tables: carts, cart_items, orders, order_items, order_events | [ ] | |
-| M3-02 | Cart per shop per distributor: add / update / remove with MOQ + step checks | [ ] | |
-| M3-03 | Place order from cart (copy name, unit, rate) | [ ] | |
-| M3-04 | Shop: my orders across distributors, cancel while pending | [ ] | |
-| M3-05 | Distributor: order queue, edit approved qty, approve, reject | [ ] | |
-| M3-06 | Dispatch: locked stock deduction + ledger + short-stock response | [ ] | Concurrency test with two dispatches |
-| M3-07 | Mark delivered | [ ] | |
-| M3-08 | Simple bill PDF (no tax) | [ ] | |
-| M3-09 | Reorder from a past order | [ ] | |
+| M3-01 | Tables: carts, cart_items, orders, order_items, order_events | [x] | Migration 0003; per-tenant order counter on tenants; cart per (tenant, shop, user) so agents get their own in M4 |
+| M3-02 | Cart per shop per distributor: add / update / remove with MOQ + step checks | [x] | Cart row locked on every change; min/step/max and stock (summed across pack sizes) checked |
+| M3-03 | Place order from cart (copy name, unit, rate) | [x] | Re-validates at placement; copies name, pack, rate, shop name/address; double tap -> one order |
+| M3-04 | Shop: my orders across distributors, cancel while pending | [x] | /shops/me/orders across distributors (works even if blocked); cancel while pending |
+| M3-05 | Distributor: order queue, edit approved qty, approve, reject | [x] | Approve with qty edits (0 removes line), reject with reason, staff cancel pending/approved |
+| M3-06 | Dispatch: locked stock deduction + ledger + short-stock response | [x] | Stock rows locked in fixed order; all-or-nothing; 409 lists short lines with qty_possible. Concurrency tests verified by removing the locks (they fail) |
+| M3-07 | Mark delivered | [x] |  |
+| M3-08 | Simple bill PDF (no tax) | [x] | fpdf2 + Noto fonts (Hindi shaped correctly), Indian number format, 'Not a tax invoice' |
+| M3-09 | Reorder from a past order | [x] | Today's prices; hidden/deleted products skipped and listed |
 
 ## M4 — Agents
 
@@ -166,3 +166,4 @@
 | 24 Oct 2026 | Node 22 installed. Expo SDK 58 mobile app created with an API health screen; all checks pass. Firewall change needs the user's OK | Phone test, then M2 |
 | 24 Oct 2026 | M2 catalog backend: categories + inherited features, FMCG template, products, pack sizes, stock + ledger, shop catalog with search and filters. 56 tests pass; live search check OK | Images, Excel import, real products |
 | 24 Oct 2026 | M2 done: photo upload + thumbnails, Excel template/import, 20 dummy products with photos, stricter search. 68 tests pass; live check over Wi-Fi OK | M3 |
+| 24 Oct 2026 | M3 done: cart, orders, approval with edits, dispatch with locked stock deduction, delivery, bill PDF, reorder. 95 tests pass; full flow checked live over Wi-Fi | M4 agents |

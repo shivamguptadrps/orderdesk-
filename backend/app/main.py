@@ -12,6 +12,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.catalog.router_catalog import router as catalog_router
 from app.modules.catalog.router_manage import router as catalog_manage_router
 from app.modules.inventory.router import router as inventory_router
+from app.modules.orders.router import router as orders_router
 from app.modules.shops.router import router as shops_router
 from app.modules.tenants.router import router as tenants_router
 
@@ -39,6 +40,7 @@ app.include_router(tenants_router)
 app.include_router(catalog_manage_router)
 app.include_router(catalog_router)
 app.include_router(inventory_router)
+app.include_router(orders_router)
 app.mount(settings.media_url_prefix, StaticFiles(directory=media_root()), name="media")
 
 
