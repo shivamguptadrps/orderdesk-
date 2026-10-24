@@ -59,7 +59,13 @@ export default function RootLayout() {
         <Stack.Screen name="choose" options={{ title: 'Ordering from', presentation: 'modal' }} />
         <Stack.Screen name="agent/shops" options={{ title: 'My shops' }} />
         <Stack.Screen name="agent/add-shop" options={{ title: 'Sign up a shop' }} />
-        <Stack.Screen name="distributor-soon" options={{ headerShown: false }} />
+        <Stack.Screen name="(manage)" options={{ headerShown: false }} />
+        <Stack.Screen name="manage/order/[id]" options={{ title: 'Order' }} />
+        <Stack.Screen name="manage/product/[id]" options={{ title: 'Product' }} />
+        <Stack.Screen name="manage/shops" options={{ title: 'Shops' }} />
+        <Stack.Screen name="manage/team" options={{ title: 'Team' }} />
+        <Stack.Screen name="manage/settings" options={{ title: 'Join code & settings' }} />
+        <Stack.Screen name="manage/stock" options={{ title: 'Low stock' }} />
         <Stack.Screen name="health" options={{ title: 'Server connection' }} />
       </Stack>
     </QueryClientProvider>

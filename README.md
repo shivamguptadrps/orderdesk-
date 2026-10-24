@@ -35,8 +35,9 @@ b2b-order-app/
 
 ## Quick start (filled in as milestones complete)
 
-**Every day:** open Docker Desktop, then double-click `start-dev.cmd`. It starts the database, the backend
-and Expo in their own windows. Scan the QR code in the Expo window with Expo Go.
+**Every day:** open Docker Desktop, then double-click `start-dev.cmd`. It stops any old copies, starts the database,
+the backend and Expo in their own windows. Scan the QR code in the Expo window with Expo Go.
+`stop-dev.cmd` stops the backend and Expo. Excel import page (on the laptop): http://localhost:8000/import
 
 **First time setup** (once):
 
@@ -103,5 +104,5 @@ In dev mode the login screen shows the OTP itself ("Test mode: your code is ..."
 | --- | --- | --- |
 | 9876543210 | Shop owner, Sharma Kirana | Order from Demo Distributor (join code `DEMO01`) |
 | 9111111111 | Ravi, agent of Demo Distributor | Pick a shop, order for it, sign up new shops |
-| 9000000001 | Owner of Demo Distributor | Distributor screens come in M6; use http://localhost:8000/docs meanwhile |
-| any other | New user | Create a shop, join with `DEMO01` (approve it from /docs until M6) |
+| 9000000001 | Owner of Demo Distributor | Distributor mode: approve/dispatch orders, products, stock, shops, team, join QR |
+| any other | New user | Create a shop, join with `DEMO01`, then approve it as 9000000001 (More › Shops) |

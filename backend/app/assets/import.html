@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OrderDesk – Excel import</title>
+<style>
+  :root { --primary:#1F6FEB; --text:#1F2328; --muted:#656D76; --border:#D8DEE4; --bg:#F6F8FA; --ok:#1A7F37; --okbg:#DAFBE1; --err:#CF222E; --errbg:#FFEBE9; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { margin: 0 0 4px; color: var(--primary); }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .card h2 { font-size: 16px; margin: 0 0 12px; }
+  label { display:block; font-weight:600; font-size:14px; margin: 12px 0 6px; }
+  input, select { width:100%; font: inherit; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+  button { font: inherit; font-weight:600; padding:10px 16px; border-radius:8px; border:1px solid var(--primary); background:var(--primary); color:#fff; cursor:pointer; margin-top:12px; }
+  button.secondary { background:#fff; color:var(--text); border-color:var(--border); }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .msg { padding:10px 12px; border-radius:8px; margin-top:12px; }
+  .msg.ok { background:var(--okbg); color:var(--ok); }
+  .msg.err { background:var(--errbg); color:var(--err); }
+  .msg.info { background:#E8F0FE; color:#1557C0; }
+  table { width:100%; border-collapse: collapse; margin-top:12px; font-size:14px; }
+  th, td { text-align:left; padding:8px; border-bottom:1px solid var(--border); vertical-align: top; }
+  .hidden { display:none; }
+  .who { color: var(--muted); font-size: 14px; }
+  ol { padding-left: 20px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>OrderDesk</h1>
+  <p class="sub">Add many products at once from Excel.</p>
+
+  <section id="login" class="card">
+    <h2>1. Log in</h2>
+    <label for="phone">Mobile number</label>
+    <input id="phone" inputmode="numeric" maxlength="10" placeholder="10-digit number">
+    <button id="send">Send code on WhatsApp</button>
+    <div id="codeBox" class="hidden">
+      <label for="code">6-digit code</label>
+      <input id="code" inputmode="numeric" maxlength="6">
+      <button id="verify">Log in</button>
+    </div>
+    <div id="loginMsg"></div>
+  </section>
+
+  <section id="work" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <span class="who" id="who"></span>
+        <button class="secondary" id="logout" style="margin:0">Log out</button>
+      </div>
+      <label for="tenant">Distributor</label>
+      <select id="tenant"></select>
+      <label for="category">Category</label>
+      <select id="category"></select>
+    </div>
+
+    <div class="card">
+      <h2>2. Download the sheet for this category</h2>
+      <ol>
+        <li>One row per product. Columns with * are required; the grey tab "How to fill" explains each column.</li>
+        <li>Rows with a SKU that already exists update that product.</li>
+      </ol>
+      <button id="download" class="secondary">Download Excel template</button>
+    </div>
+
+    <div class="card">
+      <h2>3. Upload the filled sheet</h2>
+      <input id="file" type="file" accept=".xlsx">
+      <div class="row">
+        <button id="check">Check file</button>
+        <button id="save" class="hidden">Save products</button>
+      </div>
+      <div id="result"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let token = sessionStorage.getItem('od_token');
+let tenantId = null;
+
+function show(el, kind, text) { el.innerHTML = text ? `<div class="msg ${kind}"></div>` : ''; if (text) el.firstChild.textContent = text; }
+
+async function call(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {});
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (opts.json !== undefined) { headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(opts.json); }
+  const res = await fetch(path, { method: opts.method || 'GET', headers, body: opts.body });
+  if (res.status === 401) { logout(); throw new Error('Please log in again.'); }
+  if (opts.raw) { if (!res.ok) throw new Error(`Request failed (${res.status})`); return res; }
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const d = body && body.detail;
+    throw new Error(typeof d === 'string' ? d : Array.isArray(d) ? d.map((x) => x.msg).join('; ') : `Request failed (${res.status})`);
+  }
+  return body;
+}
+
+function logout() { token = null; sessionStorage.removeItem('od_token'); $('work').classList.add('hidden'); $('login').classList.remove('hidden'); }
+
+$('send').onclick = async () => {
+  try {
+    const r = await call('/auth/otp/request', { method: 'POST', json: { phone: $('phone').value.trim() } });
+    $('codeBox').classList.remove('hidden');
+    show($('loginMsg'), 'info', r.dev_code ? `Test mode: your code is ${r.dev_code}` : 'Code sent on WhatsApp.');
+    $('code').focus();
+  } catch (e) { show($('loginMsg'), 'err', e.message); }
+};
+
+$('verify').onclick = async () => {
+  try {
+    const r = await call('/auth/otp/verify', { method: 'POST', json: { phone: $('phone').value.trim(), code: $('code').value.trim() } });
+    token = r.access_token; sessionStorage.setItem('od_token', token);
+    show($('loginMsg'), '', '');
+    await start();
+  } catch (e) { show($('loginMsg'), 'err', e.message); }
+};
+
+$('logout').onclick = logout;
+
+async function start() {
+  const me = await call('/me');
+  const manage = me.memberships.filter((m) => m.role === 'owner' || m.role === 'staff');
+  if (!manage.length) { logout(); show($('loginMsg'), 'err', 'This number does not manage any distributor.'); return; }
+  $('who').textContent = `Logged in as ${me.name || me.phone}`;
+  $('tenant').innerHTML = manage.map((m) => `<option value="${m.tenant_id}">${escapeHtml(m.tenant_name)}</option>`).join('');
+  $('login').classList.add('hidden'); $('work').classList.remove('hidden');
+  await loadCategories();
+}
+
+async function loadCategories() {
+  tenantId = $('tenant').value;
+  const cats = await call(`/t/${tenantId}/categories`);
+  const byId = Object.fromEntries(cats.map((c) => [c.id, c]));
+  const depth = (c) => (c.parent_id ? 1 + depth(byId[c.parent_id]) : 0);
+  $('category').innerHTML = cats.map((c) => `<option value="${c.id}">${'— '.repeat(depth(c))}${escapeHtml(c.name)}</option>`).join('');
+  resetResult();
+}
+
+$('tenant').onchange = loadCategories;
+$('category').onchange = resetResult;
+$('file').onchange = resetResult;
+
+function resetResult() { $('result').innerHTML = ''; $('save').classList.add('hidden'); }
+
+$('download').onclick = async () => {
+  try {
+    const res = await call(`/t/${tenantId}/product-import/template?category_id=${$('category').value}`, { raw: true });
+    const name = (res.headers.get('Content-Disposition') || '').match(/filename="(.+)"/)?.[1] || 'products.xlsx';
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+  } catch (e) { show($('result'), 'err', e.message); }
+};
+
+async function upload(dryRun) {
+  const file = $('file').files[0];
+  if (!file) { show($('result'), 'err', 'Choose the filled .xlsx file first.'); return; }
+  const form = new FormData(); form.append('file', file);
+  $('check').disabled = $('save').disabled = true;
+  try {
+    const r = await call(`/t/${tenantId}/product-import?category_id=${$('category').value}&dry_run=${dryRun}`, { method: 'POST', body: form });
+    if (r.errors.length) {
+      $('result').innerHTML = `<div class="msg err">Nothing was saved. Fix these rows and upload again:</div>
+        <table><tr><th>Row</th><th>Problem</th></tr>${r.errors.map((e) => `<tr><td>${e.row}</td><td>${escapeHtml(e.message)}</td></tr>`).join('')}</table>`;
+      $('save').classList.add('hidden');
+    } else if (dryRun) {
+      show($('result'), 'ok', `All good: ${r.created} new and ${r.updated} updated product(s). Click "Save products" to save them.`);
+      $('save').classList.remove('hidden');
+    } else {
+      show($('result'), 'ok', `Saved: ${r.created} new and ${r.updated} updated product(s). They are in the app now.`);
+      $('save').classList.add('hidden');
+    }
+  } catch (e) { show($('result'), 'err', e.message); }
+  finally { $('check').disabled = $('save').disabled = false; }
+}
+
+$('check').onclick = () => upload(true);
+$('save').onclick = () => upload(false);
+
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+if (token) start().catch(logout);
+</script>
+</body>
+</html>

@@ -80,6 +80,11 @@ first for his uncle, an FMCG distributor in India; other distributors will be on
 - M5 app: `mobile/src/app` (Expo Router; tabs in `(tabs)/`), shared code in `mobile/src/lib` (api, auth, session,
   data hooks incl. `useWorkspace` = current distributor + shop/agent mode). typedRoutes is off. Check with
   `npx tsc --noEmit`, `npx expo lint`, `npx expo-doctor`.
+- M6 app: distributor mode = session mode 'manage'; tabs in `mobile/src/app/(manage)/`, detail screens in
+  `mobile/src/app/manage/`, helpers in `mobile/src/lib/manage.ts`, product editor parts in `mobile/src/components/manage/`.
+- Restarting the backend: uvicorn --reload workers can outlive their parent and keep serving OLD code on :8000.
+  Use `start-dev.cmd` / `stop-dev.cmd` (they run `tools/stop-dev.ps1`). If an endpoint 404s unexpectedly, check
+  `netstat -ano | findstr :8000` for more than one listener.
 - Search: exact word matches first; fuzzy `word_similarity` only when nothing matches exactly.
 - Windows tooling note: curl from Git Bash garbles Hindi text; test Hindi with Python/httpx.
 - Next: see `docs/TRACKER.md` "Next up" (git commit, Node 22 LTS, M0-06 mobile).

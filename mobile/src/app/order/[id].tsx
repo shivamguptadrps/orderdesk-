@@ -1,15 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { File, Paths } from 'expo-file-system';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Banner, Button, Card, ErrorView, Loading, SectionTitle, StatusBadge } from '@/components/ui';
-import { api, buildUrl, errorText } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { api, errorText } from '@/lib/api';
 import { useRefreshOrders, useWorkspace } from '@/lib/data';
+import { downloadAndShare } from '@/lib/files';
 import { dateTime, inr, packLabel, STATUS_LABEL } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { colors, radius, space } from '@/lib/theme';
@@ -72,18 +70,7 @@ function OrderView({
     setSharing(true);
     try {
       const billPath = agent ? `/t/${tenant}/orders/${id}/bill.pdf` : `/shops/me/orders/${id}/bill.pdf`;
-      const file = new File(Paths.cache, `order-${o.order_no}-${o.distributor_name.replace(/\W+/g, '-')}.pdf`);
-      if (file.exists) file.delete();
-      const task = File.createDownloadTask(buildUrl(billPath), file, {
-        headers: { Authorization: `Bearer ${useAuth.getState().accessToken}` },
-      });
-      const saved = await task.downloadAsync();
-      if (!saved) return;
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(saved.uri, { mimeType: 'application/pdf', dialogTitle: `Order #${o.order_no}`, UTI: 'com.adobe.pdf' });
-      } else {
-        Alert.alert('Bill saved', saved.uri);
-      }
+      await downloadAndShare(billPath, `order-${o.order_no}-${o.distributor_name}.pdf`, 'application/pdf', `Order #${o.order_no}`);
     } catch (err) {
       Alert.alert("Couldn't get the bill", errorText(err));
     } finally {

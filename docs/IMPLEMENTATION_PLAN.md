@@ -16,14 +16,14 @@ Rough time for one developer working part-time: 10–12 weeks. Estimates are gue
 | M3 Cart, orders, dispatch, bill | ✅ Done | |
 | M4 Agents | ✅ Done | Also: staff management, distributor settings, staff ordering for a shop |
 | M5 Shop owner app | ✅ Built (phone check pending) | Includes agent mode (M5-10). Distributor screens are M6 |
-| M6 Distributor tools | Not started | Backend for team, shops, products, stock, orders, settings already exists |
+| M6 Distributor tools | ✅ Built (phone check pending) | Distributor mode in the app + Excel import page at /import |
 | M7 Related products, notifications, polish | Not started | |
 | M8 Deploy and pilot | Not started | |
 
-The backend for M1–M4 has 111 automated tests, including tenant isolation for every endpoint and
+The backend has 119 automated tests, including tenant isolation for every endpoint and
 concurrency tests for ordering and stock. API reference: http://localhost:8000/docs when the backend runs.
 
-Revised estimate for what is left: M5 2–3 weeks, M6 1.5–2 weeks, M7 1 week, M8 1 week (part-time).
+Left: phone testing and fixes for M5/M6, then M7 (about 1 week) and M8 (about 1 week, part-time).
 
 ---
 
@@ -219,6 +219,11 @@ The backend for every item below already exists (M1–M4), so M6 is screens only
 - Excel import is easier on a computer: add a minimal web page for upload only (`admin-web/` or a FastAPI-served page).
 
 **Done when:** your uncle can run the business day from his phone without Swagger.
+
+**As built:** a third app mode, "Manage" (owner/staff), with tabs Today · Orders · Products · More.
+Low stock = active products with less than 2 of their main pack (no per-product threshold yet).
+New backend endpoints: `GET /t/{t}/dashboard`, `GET /t/{t}/join-qr.png`, `POST /t/{t}/join-code/regenerate`, `POST /t/{t}/logo`,
+`/products?low_stock=true&sort=stock`, `/orders?oldest_first=true`. Excel import is a single page served by the backend at `/import`.
 
 ---
 

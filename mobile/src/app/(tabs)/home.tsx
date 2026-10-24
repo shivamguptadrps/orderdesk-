@@ -46,7 +46,7 @@ export default function Home() {
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-      <Header ws={current} canSwitch={ws.shopOptions.length + ws.agentOptions.length > 1} />
+      <Header ws={current} canSwitch={ws.shopOptions.length + ws.agentOptions.length + ws.manageOptions.length > 1} />
       {current.mode === 'agent' && !current.agentShop ? (
         <Empty
           icon="people-outline"
@@ -65,6 +65,7 @@ function Header({ ws, canSwitch }: { ws: Workspace; canSwitch: boolean }) {
   const router = useRouter();
   return (
     <View style={styles.header}>
+      {ws.logoUrl ? <Image source={{ uri: mediaUrl(ws.logoUrl) }} style={styles.logo} contentFit="cover" /> : null}
       <Pressable onPress={() => router.push('/choose')} disabled={!canSwitch} style={{ flex: 1 }}>
         <Text style={styles.headerLabel}>{ws.mode === 'agent' ? 'Agent for' : 'Ordering from'}</Text>
         <View style={styles.row}>
@@ -228,6 +229,7 @@ const styles = StyleSheet.create({
     paddingBottom: space.sm,
     gap: space.sm,
   },
+  logo: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.card },
   headerLabel: { fontSize: 12, color: colors.muted },
   headerName: { fontSize: 20, fontWeight: '800', color: colors.text, flexShrink: 1 },
   shopPill: {

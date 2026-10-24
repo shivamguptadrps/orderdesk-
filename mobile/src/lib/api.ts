@@ -86,3 +86,31 @@ export function errorText(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
 }
+
+/** Upload one photo (multipart). Used for product photos and the distributor logo. */
+export async function uploadImage<T>(path: string, file: { uri: string; name?: string | null; mimeType?: string | null }): Promise<T> {
+  const send = async () => {
+    const form = new FormData();
+    // React Native's FormData takes { uri, name, type } for files.
+    form.append('file', {
+      uri: file.uri,
+      name: file.name || 'photo.jpg',
+      type: file.mimeType || 'image/jpeg',
+    } as unknown as Blob);
+    const token = useAuth.getState().accessToken;
+    try {
+      return await fetch(buildUrl(path), {
+        method: 'POST',
+        headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: form,
+      });
+    } catch {
+      throw new ApiError(`Can't reach the server at ${API_URL}.`, null);
+    }
+  };
+  let res = await send();
+  if (res.status === 401 && (await useAuth.getState().refresh())) res = await send();
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(messageFrom(body, res.status), res.status, body?.detail);
+  return body as T;
+}

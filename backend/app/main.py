@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,9 +47,18 @@ app.include_router(orders_router)
 app.mount(settings.media_url_prefix, StaticFiles(directory=media_root()), name="media")
 
 
+IMPORT_PAGE = Path(__file__).parent / "assets" / "import.html"
+
+
+@app.get("/import", include_in_schema=False, response_class=HTMLResponse)
+async def import_page() -> HTMLResponse:
+    """Excel import page for distributors (open on a computer)."""
+    return HTMLResponse(IMPORT_PAGE.read_text(encoding="utf-8"))
+
+
 @app.get("/", include_in_schema=False)
 async def root() -> dict:
-    return {"app": "OrderDesk API", "health": "/health", "docs": "/docs"}
+    return {"app": "OrderDesk API", "health": "/health", "docs": "/docs", "excel_import": "/import"}
 
 
 @app.get("/health", tags=["health"])

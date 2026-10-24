@@ -233,6 +233,17 @@ def _ensure_one_default(units: list[ProductUnit], preferred: ProductUnit | None 
         u.is_default = u is chosen
 
 
+def _default_pack_pieces():
+    """Pieces in the product's default pack (1 if it has none)."""
+    return func.coalesce(
+        select(ProductUnit.pieces_per_unit)
+        .where(ProductUnit.product_id == Product.id, ProductUnit.is_default.is_(True))
+        .limit(1)
+        .scalar_subquery(),
+        1,
+    )
+
+
 def _sku_conflict() -> HTTPException:
     return HTTPException(409, "Another product already uses this SKU")
 
@@ -242,6 +253,8 @@ async def list_products(
     q: str | None = None,
     category_id: uuid.UUID | None = None,
     status: str | None = Query(default=None, pattern="^(active|hidden)$"),
+    low_stock: bool = Query(default=False, description="Only active products with less than 2 of their main pack"),
+    sort: str = Query(default="name", pattern="^(name|stock)$", description="name, or stock (lowest first)"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     ctx: TenantContext = Depends(_staff),
@@ -254,7 +267,13 @@ async def list_products(
         query = query.where(Product.category_id.in_(tree.subtree(category_id)))
     if status:
         query = query.where(Product.status == status)
+    if low_stock or sort == "stock":
+        query = query.outerjoin(Stock, Stock.product_id == Product.id)
+    if low_stock:
+        query = query.where(Product.status == "active", func.coalesce(Stock.qty_pieces, 0) < 2 * _default_pack_pieces())
     query = await apply_search(db, query, q)
+    if sort == "stock":
+        query = query.order_by(None).order_by(func.coalesce(Stock.qty_pieces, 0), Product.name)
     total = await count(db, query)
     products = (await db.scalars(query.limit(limit).offset(offset))).all()
     stock = await stock_map(db, [p.id for p in products])

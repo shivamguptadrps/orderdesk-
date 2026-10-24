@@ -52,20 +52,28 @@ def _open_image(data: bytes) -> Image.Image:
 
 
 def save_product_image(tenant_id: uuid.UUID, data: bytes) -> str:
+    return save_image(tenant_id, data, "products")
+
+
+def save_image(tenant_id: uuid.UUID, data: bytes, kind: str) -> str:
     img = _open_image(data)
-    folder = media_root() / str(tenant_id) / "products"
+    folder = media_root() / str(tenant_id) / kind
     folder.mkdir(parents=True, exist_ok=True)
     name = uuid.uuid4().hex
     for suffix, size in SIZES.items():
         copy = img.copy()
         copy.thumbnail((size, size), Image.Resampling.LANCZOS)
         copy.save(folder / f"{name}_{suffix}.jpg", "JPEG", quality=85, optimize=True)
-    return f"{_url_prefix()}/{tenant_id}/products/{name}_800.jpg"
+    return f"{_url_prefix()}/{tenant_id}/{kind}/{name}_800.jpg"
 
 
 def delete_product_image(tenant_id: uuid.UUID, url: str) -> None:
+    delete_image(tenant_id, url, "products")
+
+
+def delete_image(tenant_id: uuid.UUID, url: str, kind: str) -> None:
     """Remove our own stored files for this URL. External URLs are ignored."""
-    prefix = f"{_url_prefix()}/{tenant_id}/products/"
+    prefix = f"{_url_prefix()}/{tenant_id}/{kind}/"
     if not url.startswith(prefix):
         return
     root = media_root()

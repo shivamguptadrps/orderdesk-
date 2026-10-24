@@ -17,6 +17,9 @@ export default function ChooseScreen() {
     if (o.mode === 'shop') {
       useSession.getState().chooseShopMode(o.tenantId);
       router.back();
+    } else if (o.mode === 'manage') {
+      useSession.getState().chooseManageMode(o.tenantId);
+      router.replace('/dashboard');
     } else {
       useSession.getState().chooseAgentMode(o.tenantId);
       router.replace('/agent/shops');
@@ -34,6 +37,10 @@ export default function ChooseScreen() {
       {ws.agentOptions.length > 0 && <SectionTitle>As an agent</SectionTitle>}
       {ws.agentOptions.map((o) => (
         <Option key={`a-${o.tenantId}`} title={`Agent for ${o.name}`} icon="briefcase-outline" active={isCurrent(o)} onPress={() => pick(o)} />
+      ))}
+      {ws.manageOptions.length > 0 && <SectionTitle>Distributor tools</SectionTitle>}
+      {ws.manageOptions.map((o) => (
+        <Option key={`m-${o.tenantId}`} title={`Manage ${o.name}`} icon="speedometer-outline" active={isCurrent(o)} onPress={() => pick(o)} />
       ))}
       {ws.me.data?.shop && (
         <Button

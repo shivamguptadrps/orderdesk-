@@ -22,15 +22,16 @@
 | M3 Cart, orders, approval, dispatch, bill | Done | 24 Oct 2026 | 24 Oct 2026 |
 | M4 Agents | Done | 24 Oct 2026 | 24 Oct 2026 |
 | M5 Mobile app: shop owner | Built, phone check pending | 24 Oct 2026 | |
-| M6 Distributor tools | Not started | | |
+| M6 Distributor tools | Built, phone check pending | 24 Oct 2026 | |
 | M7 Related products, notifications, polish | Not started | | |
 | M8 Deploy and pilot | Not started | | |
 
 ## Next up
 
-1. Test M5 on the phone (shop owner 9876543210, agent 9111111111) and fix what feels wrong.
-2. M6: distributor mode in the app (orders queue, approve/edit/dispatch, products, stock, shops, team, join code/QR).
-3. Later: uncle's real account + real products; Meta WhatsApp number for real OTPs.
+1. Test M6 on the phone as the owner (9000000001): approve/dispatch the waiting orders, add a product with a photo, share the join QR.
+2. Fix what feels wrong in M5/M6 after phone testing.
+3. M7: related products, push notifications, reports polish. Then M8: deploy + pilot.
+4. Later: uncle's real account + real products; Meta WhatsApp number for real OTPs.
 
 ## Blockers
 
@@ -123,13 +124,13 @@
 
 | ID | Task | Status | Notes |
 | --- | --- | --- | --- |
-| M6-01 | Orders queue with approve / edit / reject / dispatch / deliver | [ ] | |
-| M6-02 | Product add / edit with category features and camera photos | [ ] | |
-| M6-03 | Stock adjust screen + low stock list | [ ] | |
-| M6-04 | Shops: approve requests, assign agent | [ ] | |
-| M6-05 | Agents management | [ ] | |
-| M6-06 | Join code + QR share, logo, colour | [ ] | |
-| M6-07 | Excel upload page (web) | [ ] | |
+| M6-01 | Orders queue with approve / edit / reject / dispatch / deliver | [x] | Queue (waiting oldest first), approve with qty edits, reject with reason, dispatch with short-stock auto-reduce, deliver, cancel, call shop, bill |
+| M6-02 | Product add / edit with category features and camera photos | [x] | Create/edit with category features, pack sizes, on-sale switch, photos from camera/gallery, delete |
+| M6-03 | Stock adjust screen + low stock list | [x] | Stock received / counted / removed, by pack size; history; low stock = under 2 of the main pack |
+| M6-04 | Shops: approve requests, assign agent | [x] | Waiting/active/blocked lists, approve, decline/block/unblock, assign agent, call |
+| M6-05 | Agents management | [x] | Team: add/remove agents and staff (staff only by owner) |
+| M6-06 | Join code + QR share, logo, colour | [x] | Join code + QR (share as text or image), new code, name, brand colour, logo, agent auto-approve |
+| M6-07 | Excel upload page (web) | [x] | Served by the backend at /import: OTP login, pick category, download template, check, save |
 
 ## M7 — Related products, notifications, polish
 
@@ -170,3 +171,4 @@
 | 24 Oct 2026 | Phone shows API OK (iPhone, Expo Go). Added start-dev.cmd. M0 closed | M4 agents |
 | 24 Oct 2026 | M4 done: team management, agent shops, ordering for a shop (agent/admin), shop sign-up by agent with optional auto-approve, settings. 111 tests pass; live agent flow checked. Plan updated with status and as-built notes | M5 screens |
 | 24 Oct 2026 | M5 app built: login, shop setup, distributors (code/QR), catalog + search, product page, cart, orders, bill share, reorder/cancel, profile, agent mode. tsc + lint + expo-doctor clean, iOS bundle builds | Phone test, then M6 |
+| 24 Oct 2026 | M6 built: distributor mode in the app (dashboard, queue, product editor with photos/stock, low stock, shops, team, settings/QR) + /import web page. 119 backend tests; tsc/lint/doctor clean. Fixed: old backend workers kept serving stale code (start-dev.cmd now stops them) | Phone test M6, then M7 |

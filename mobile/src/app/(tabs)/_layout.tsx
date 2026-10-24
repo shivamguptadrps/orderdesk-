@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 
 import { useCart, useWorkspace } from '@/lib/data';
 import { colors } from '@/lib/theme';
@@ -8,6 +8,8 @@ export default function TabsLayout() {
   const ws = useWorkspace();
   const cart = useCart(ws.current);
   const count = cart.data?.item_count ?? 0;
+  // Distributor tools have their own tabs.
+  if (ws.current?.mode === 'manage') return <Redirect href="/dashboard" />;
 
   return (
     <Tabs

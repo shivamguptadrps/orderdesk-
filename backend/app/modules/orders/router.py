@@ -177,6 +177,7 @@ def _check_status_filter(status: str | None) -> None:
 async def list_orders(
     status: str | None = None,
     shop_id: uuid.UUID | None = None,
+    oldest_first: bool = Query(default=False, description="Queue order: oldest waiting order first"),
     limit: int = Query(default=30, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -199,7 +200,10 @@ async def list_orders(
             query = query.where(Order.shop_id == shop_id)
     if status:
         query = query.where(Order.status == status)
-    query = query.order_by(Order.created_at.desc(), Order.order_no.desc())
+    if oldest_first:
+        query = query.order_by(Order.created_at, Order.order_no)
+    else:
+        query = query.order_by(Order.created_at.desc(), Order.order_no.desc())
     total = await count(db, query)
     orders = (await db.scalars(query.limit(limit).offset(offset))).all()
     return OrderPage(items=await service.summaries_out(db, orders), total=total)

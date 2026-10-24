@@ -3,6 +3,9 @@ rem Starts everything for development: database, backend API, Expo.
 rem Double-click this file, or run start-dev.cmd from the project folder.
 cd /d "%~dp0"
 
+echo Stopping old copies (if any)...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\stop-dev.ps1"
+
 echo Starting database (Docker Desktop must be open)...
 docker compose -f deploy\docker-compose.yml up -d
 if errorlevel 1 (

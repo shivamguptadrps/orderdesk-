@@ -3,7 +3,7 @@ import { create } from 'zustand';
 
 const KEY = 'session.v1';
 
-export type Mode = 'shop' | 'agent';
+export type Mode = 'shop' | 'agent' | 'manage';
 
 type Saved = {
   tenantId: string | null;
@@ -19,6 +19,8 @@ type SessionState = Saved & {
   /** Agent mode for this distributor; the shop is picked separately. */
   chooseAgentMode: (tenantId: string) => void;
   pickAgentShop: (shop: { id: string; name: string } | null) => void;
+  /** Distributor tools (owner/staff) for this distributor. */
+  chooseManageMode: (tenantId: string) => void;
   reset: () => void;
 };
 
@@ -49,6 +51,7 @@ export const useSession = create<SessionState>()((set, get) => {
     chooseAgentMode: (tenantId) =>
       update({ tenantId, mode: 'agent', agentShop: get().mode === 'agent' && get().tenantId === tenantId ? get().agentShop : null }),
     pickAgentShop: (agentShop) => update({ agentShop }),
+    chooseManageMode: (tenantId) => update({ tenantId, mode: 'manage', agentShop: null }),
     reset: () => update(EMPTY),
   };
 });

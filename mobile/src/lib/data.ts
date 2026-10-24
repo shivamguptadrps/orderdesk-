@@ -18,13 +18,22 @@ export function useMyDistributors(enabled = true) {
   });
 }
 
-export type WorkspaceOption = { tenantId: string; name: string; mode: Mode; brandColor: string | null };
+export type WorkspaceOption = {
+  tenantId: string;
+  name: string;
+  mode: Mode;
+  brandColor: string | null;
+  logoUrl?: string | null;
+  role?: 'owner' | 'staff' | 'agent';
+};
 
 export type Workspace = {
   tenantId: string;
   name: string;
   mode: Mode;
   brandColor: string | null;
+  logoUrl?: string | null;
+  role?: 'owner' | 'staff' | 'agent';
   /** Agent mode: the shop being ordered for (null until picked). */
   agentShop: { id: string; name: string } | null;
 };
@@ -41,11 +50,14 @@ export function useWorkspace() {
 
   const shopOptions: WorkspaceOption[] = (dists.data ?? [])
     .filter((d) => d.status === 'active')
-    .map((d) => ({ tenantId: d.tenant_id, name: d.name, mode: 'shop', brandColor: d.brand_color }));
+    .map((d) => ({ tenantId: d.tenant_id, name: d.name, mode: 'shop', brandColor: d.brand_color, logoUrl: d.logo_url }));
   const agentOptions: WorkspaceOption[] = (me.data?.memberships ?? [])
     .filter((m) => m.role === 'agent')
-    .map((m) => ({ tenantId: m.tenant_id, name: m.tenant_name, mode: 'agent', brandColor: null }));
-  const options = [...shopOptions, ...agentOptions];
+    .map((m) => ({ tenantId: m.tenant_id, name: m.tenant_name, mode: 'agent', brandColor: null, role: 'agent' }));
+  const manageOptions: WorkspaceOption[] = (me.data?.memberships ?? [])
+    .filter((m) => m.role === 'owner' || m.role === 'staff')
+    .map((m) => ({ tenantId: m.tenant_id, name: m.tenant_name, mode: 'manage', brandColor: null, role: m.role }));
+  const options = [...shopOptions, ...agentOptions, ...manageOptions];
 
   const saved = options.find((o) => o.tenantId === session.tenantId && o.mode === session.mode);
   const chosen = saved ?? options[0];
@@ -59,6 +71,7 @@ export function useWorkspace() {
     current,
     shopOptions,
     agentOptions,
+    manageOptions,
     loading: me.isLoading || (hasShop && dists.isLoading) || !session.loaded,
   };
 }

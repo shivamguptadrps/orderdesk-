@@ -131,7 +131,16 @@ export default function ProfileScreen() {
           <SectionTitle>Distributor tools</SectionTitle>
           <Card>
             <Text style={styles.itemTitle}>{manages.map((m) => `${m.tenant_name} (${m.role})`).join(', ')}</Text>
-            <Text style={styles.muted}>Managing orders, products and shops from the app is coming next (milestone M6).</Text>
+            <Text style={styles.muted}>Approve orders, manage products, stock, shops and your team.</Text>
+            <Button
+              title="Open distributor tools"
+              icon="speedometer-outline"
+              style={{ marginTop: space.md }}
+              onPress={() => {
+                useSession.getState().chooseManageMode(manages[0].tenant_id);
+                router.replace('/dashboard');
+              }}
+            />
           </Card>
         </>
       )}

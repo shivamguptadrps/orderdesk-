@@ -27,10 +27,7 @@ export default function Gate() {
   if (ws.loading || !ws.me.data) return <Loading />;
 
   const me = ws.me.data;
-  const isAgent = me.memberships.some((m) => m.role === 'agent');
-  if (!me.shop && !isAgent) {
-    const manages = me.memberships.some((m) => m.role === 'owner' || m.role === 'staff');
-    return <Redirect href={manages ? '/distributor-soon' : '/setup-shop'} />;
-  }
+  if (!me.shop && !me.memberships.length) return <Redirect href="/setup-shop" />;
+  if (ws.current?.mode === 'manage') return <Redirect href="/dashboard" />;
   return <Redirect href="/home" />;
 }

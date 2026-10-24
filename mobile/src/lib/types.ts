@@ -138,3 +138,83 @@ export type AgentShop = {
   added_by_agent: boolean;
   last_order_at: string | null;
 };
+
+// ---------- distributor (manage) ----------
+
+export type TenantInfo = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  brand_color: string | null;
+  my_role: 'owner' | 'staff' | 'agent' | 'shop';
+  join_code: string | null;
+  agent_shops_auto_approve: boolean | null;
+};
+
+export type Dashboard = {
+  pending_orders: number;
+  to_dispatch: number;
+  shops_waiting: number;
+  low_stock: number;
+  out_of_stock: number;
+  today_orders: number;
+  today_value: number;
+};
+
+export type ManageUnit = {
+  id: string;
+  name: string;
+  pieces_per_unit: number;
+  price: number;
+  price_per_piece: number;
+  min_qty: number;
+  step_qty: number;
+  max_qty: number | null;
+  is_default: boolean;
+  sort_order: number;
+};
+
+export type ManageProduct = {
+  id: string;
+  category_id: string;
+  name: string;
+  brand: string | null;
+  description: string | null;
+  search_aliases: string | null;
+  sku: string | null;
+  mrp: number | null;
+  attributes: Record<string, string | number | boolean>;
+  images: string[];
+  thumbnails: string[];
+  status: 'active' | 'hidden';
+  units: ManageUnit[];
+  stock_pieces: number;
+};
+
+export type Attribute = {
+  id: string;
+  category_id: string;
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'select' | 'boolean';
+  unit: string | null;
+  options: string[];
+  required: boolean;
+  is_filter: boolean;
+  inherited?: boolean;
+};
+
+export type FlatCategory = { id: string; parent_id: string | null; name: string; attributes: Attribute[] };
+
+export type TenantShop = AgentShop & { agent_user_id: string | null; joined_at: string };
+
+export type Member = { user_id: string; phone: string; name: string | null; role: 'owner' | 'staff' | 'agent'; assigned_shops: number };
+
+export type LedgerEntry = {
+  id: string;
+  change_pieces: number;
+  balance_after: number;
+  reason: string;
+  note: string | null;
+  created_at: string;
+};
