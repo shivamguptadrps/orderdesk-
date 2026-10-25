@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActionSheetIOS, Alert, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { CartBar } from '@/components/shop/CartBar';
 import { categoryLook } from '@/components/shop/categoryLook';
@@ -12,7 +12,7 @@ import { Empty, ErrorView, Loading, SkeletonList } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useCartActions } from '@/lib/cartActions';
 import { useCart, useWorkspace, type Workspace } from '@/lib/data';
-import { mediaUrl, saving } from '@/lib/format';
+import { gridColumns, mediaUrl, saving } from '@/lib/format';
 import { colors, space } from '@/lib/theme';
 import type { CatalogCard, CategoryNode, Page } from '@/lib/types';
 
@@ -71,6 +71,8 @@ function CategoryView({ initialId, ws }: { initialId: string; ws: Workspace }) {
     queryFn: () => api<Page<CatalogCard>>(`${base}/catalog/products`, { query: { category_id: categoryId, limit: 100 } }),
     enabled: !!categoryId,
   });
+  const { width } = useWindowDimensions();
+  const cols = gridColumns(Math.min(width, 1080) - RAIL - 16);
   const lines = useMemo(() => new Map((cart.data?.items ?? []).map((l) => [l.unit_id, l])), [cart.data]);
   const sorted = useMemo(() => {
     const list = [...(products.data?.items ?? [])];
@@ -166,7 +168,8 @@ function CategoryView({ initialId, ws }: { initialId: string; ws: Workspace }) {
             <FlatList
               data={sorted}
               keyExtractor={(p) => p.id}
-              numColumns={2}
+              key={`grid-${cols}`}
+              numColumns={cols}
               columnWrapperStyle={{ gap: 8, paddingHorizontal: 8 }}
               contentContainerStyle={{ gap: 10, paddingBottom: 110, flexGrow: 1 }}
               refreshControl={<RefreshControl refreshing={products.isRefetching} onRefresh={() => void products.refetch()} />}
@@ -179,6 +182,7 @@ function CategoryView({ initialId, ws }: { initialId: string; ws: Workspace }) {
               }
               renderItem={({ item }) => (
                 <ProductTile
+                  columns={cols}
                   p={item}
                   line={lines.get(item.default_unit.id)}
                   busy={actions.busy === item.id}

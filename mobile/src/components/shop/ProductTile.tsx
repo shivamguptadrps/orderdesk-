@@ -96,6 +96,7 @@ export function ProductTile({
   onOpen,
   onAdd,
   onQty,
+  columns = 2,
 }: {
   p: CatalogCard;
   line?: CartLine;
@@ -104,12 +105,14 @@ export function ProductTile({
   onOpen: () => void;
   onAdd: () => void;
   onQty: (qty: number) => void;
+  /** Cards per row, so a card never stretches wider than its column. */
+  columns?: number;
 }) {
   const u = p.default_unit;
   const off = saving(p.mrp, u.price, u.pieces_per_unit);
   const sellable = p.in_stock && u.in_stock;
   return (
-    <Pressable onPress={onOpen} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.92 }]}>
+    <Pressable onPress={onOpen} style={({ pressed }) => [styles.tile, { maxWidth: `${100 / columns}%` }, pressed && { opacity: 0.92 }]}>
       <View style={styles.imageBox}>
         {p.image ? (
           <Image source={{ uri: mediaUrl(p.image) }} style={[StyleSheet.absoluteFill, { borderRadius: 10 }, !sellable && { opacity: 0.4 }]} contentFit="cover" transition={150} />

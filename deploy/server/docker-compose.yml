@@ -37,8 +37,11 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://orderdesk:${DB_PASSWORD}@orderdesk-db:5432/orderdesk
       MEDIA_DIR: /app/uploads
+      WEB_DIR: /app/web
     volumes:
       - uploads:/app/uploads
+      # Web version of the app, uploaded by deploy/web-deploy.sh (served at /app)
+      - ../../../orderdesk-web:/app/web:ro
     depends_on:
       db:
         condition: service_healthy

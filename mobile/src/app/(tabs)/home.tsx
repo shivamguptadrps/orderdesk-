@@ -18,7 +18,7 @@ import { api, errorText } from '@/lib/api';
 import { useCartActions } from '@/lib/cartActions';
 import { isHex, shade } from '@/lib/color';
 import { useCart, useWorkspace, type Workspace } from '@/lib/data';
-import { mediaUrl, saving } from '@/lib/format';
+import { gridColumns, mediaUrl, saving } from '@/lib/format';
 import { colors, radius, space } from '@/lib/theme';
 import type { Banner, CatalogCard, CategoryNode, Page } from '@/lib/types';
 
@@ -176,6 +176,7 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
   // 4 per row; up to 5 categories fit in one row so none is left alone on a second line.
   const catCount = categories.data?.length ?? 0;
   const perRow = catCount === 5 ? 5 : 4;
+  const cols = gridColumns(Math.min(width, 1080) - space.lg * 2);
   const tileW = (Math.min(width, 700) - space.lg * 2 - 10 * (perRow - 1)) / perRow;
 
   const refresh = () => {
@@ -244,7 +245,8 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
     <FlatList
       data={products.data?.items ?? []}
       keyExtractor={(p) => p.id}
-      numColumns={2}
+      key={`grid-${cols}`}
+      numColumns={cols}
       columnWrapperStyle={{ gap: 10, paddingHorizontal: space.lg }}
       contentContainerStyle={{ gap: 12, paddingBottom: 110, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
@@ -260,6 +262,7 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
       }
       renderItem={({ item }) => (
         <ProductTile
+          columns={cols}
           p={item}
           line={lines.get(item.default_unit.id)}
           busy={actions.busy === item.id}

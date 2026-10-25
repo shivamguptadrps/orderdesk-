@@ -5,7 +5,8 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi import Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -85,9 +86,35 @@ async def import_page() -> HTMLResponse:
     return HTMLResponse(IMPORT_PAGE.read_text(encoding="utf-8"))
 
 
+def _web_root() -> Path | None:
+    if not settings.web_dir:
+        return None
+    root = Path(settings.web_dir).resolve()
+    return root if (root / "index.html").is_file() else None
+
+
 @app.get("/", include_in_schema=False)
-async def root() -> dict:
-    return {"app": "OrderDesk API", "health": "/health", "docs": "/docs", "excel_import": "/import"}
+async def root(request: Request):
+    """A browser opening the site goes to the web app; anything else gets a small API summary."""
+    if _web_root() and "text/html" in request.headers.get("accept", ""):
+        return RedirectResponse("/app/", status_code=302)
+    return {"app": "OrderDesk API", "health": "/health", "docs": "/docs", "excel_import": "/import", "web_app": "/app/"}
+
+
+@app.get("/app", include_in_schema=False)
+@app.get("/app/{path:path}", include_in_schema=False)
+async def web_app(path: str = ""):
+    """The web version of the app (for distributors on a laptop). Unknown paths get index.html,
+    so links like /app/manage/shops work when opened directly."""
+    root = _web_root()
+    if root is None:
+        return HTMLResponse("Web app is not installed on this server.", status_code=404)
+    target = (root / path).resolve()
+    if path and target.is_file() and target.is_relative_to(root):
+        # Built files have a content hash in their name, so they can be cached for a long time.
+        long_cache = "/_expo/" in f"/{path}" or path.startswith("assets/")
+        return FileResponse(target, headers={"Cache-Control": "public, max-age=31536000, immutable" if long_cache else "no-cache"})
+    return FileResponse(root / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/health", tags=["health"])

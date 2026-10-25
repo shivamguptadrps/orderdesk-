@@ -95,3 +95,8 @@ export function shortInr(v: number): string {
   if (v >= 1e3) return `₹${(v / 1e3).toFixed(v >= 1e4 ? 0 : 1)}K`;
   return `₹${Math.round(v)}`;
 }
+
+/** How many product cards fit in a row: 2 on phones, 3 on tablets, 4 on a laptop. `width` is the space available. */
+export function gridColumns(width: number): number {
+  return width >= 860 ? 4 : width >= 560 ? 3 : 2;
+}

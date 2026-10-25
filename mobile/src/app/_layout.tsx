@@ -1,7 +1,10 @@
+import '@/lib/webPolyfills';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { PushHandler } from '@/components/PushHandler';
 import { ApiError } from '@/lib/api';
@@ -43,6 +46,8 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <AuthWatcher />
       <PushHandler />
+      <View style={styles.page}>
+      <View style={styles.frame}>
       <Stack
         screenOptions={{
           headerTintColor: colors.text,
@@ -76,6 +81,27 @@ export default function RootLayout() {
         <Stack.Screen name="health" options={{ title: 'Server connection' }} />
         <Stack.Screen name="admin/index" options={{ title: 'Platform admin' }} />
       </Stack>
+      </View>
+      </View>
     </QueryClientProvider>
   );
 }
+
+// On a laptop browser, keep the app at a comfortable width in the middle of the screen.
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: Platform.OS === 'web' ? '#E9EDF1' : colors.bg },
+  frame:
+    Platform.OS === 'web'
+      ? {
+          flex: 1,
+          width: '100%',
+          maxWidth: 1080,
+          alignSelf: 'center',
+          backgroundColor: colors.bg,
+          borderLeftWidth: StyleSheet.hairlineWidth,
+          borderRightWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+          overflow: 'hidden',
+        }
+      : { flex: 1 },
+});

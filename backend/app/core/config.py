@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     media_dir: str = "uploads"  # product photos (local disk in dev)
     media_url_prefix: str = "/media"
 
+    # Folder with the web version of the app (built with `expo export -p web`), served at /app. Empty = off.
+    web_dir: str = ""
+
     # Push notifications: "expo" sends through Expo's push service, "log" only prints, "off" does nothing.
     push_mode: str = "expo"
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
