@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     platform_admin_phones: str = ""  # comma-separated, e.g. "+918173837031"
     platform_admin_key: str = ""
 
+    # Store review: this one number logs in with this fixed code (no WhatsApp message). Empty = off.
+    review_phone: str = ""  # e.g. "+919999900001"
+    review_code: str = ""  # 6 digits
+
+    # Shown on the privacy policy and account deletion pages.
+    support_email: str = ""
+
     whatsapp_token: str = ""
     whatsapp_phone_number_id: str = ""
     whatsapp_otp_template: str = ""

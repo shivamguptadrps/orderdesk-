@@ -1,7 +1,8 @@
+import secrets
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import security
@@ -24,11 +25,17 @@ from app.modules.auth.schemas import (
     TokenOut,
     UserOut,
 )
-from app.modules.shops.models import Shop
+from app.modules.orders.models import Cart
+from app.modules.shops.models import DistributorShop, Shop
 from app.modules.shops.schemas import ShopOut
 from app.modules.tenants.models import Tenant, TenantMember
 
 router = APIRouter(tags=["auth"])
+
+
+def _is_review_phone(phone: str) -> bool:
+    s = get_settings()
+    return bool(s.review_phone and s.review_code) and phone == s.review_phone
 
 
 def _otp_hash(phone: str, code: str) -> str:
@@ -56,10 +63,11 @@ async def request_otp(body: OtpRequestIn, db: AsyncSession = Depends(get_db)):
         .select_from(OtpRequest)
         .where(OtpRequest.phone == body.phone, OtpRequest.created_at >= window_start)
     )
-    if recent >= s.otp_rate_limit_count:
+    review = _is_review_phone(body.phone)
+    if recent >= s.otp_rate_limit_count and not review:
         raise HTTPException(429, "Too many OTP requests. Please try again in a few minutes.")
 
-    code = security.generate_otp()
+    code = s.review_code if review else security.generate_otp()
     db.add(
         OtpRequest(
             phone=body.phone,
@@ -68,7 +76,8 @@ async def request_otp(body: OtpRequestIn, db: AsyncSession = Depends(get_db)):
         )
     )
     await db.commit()
-    await send_otp(body.phone, code)
+    if not review:  # the store reviewer's number gets no message; they use the fixed code
+        await send_otp(body.phone, code)
     # Test servers (dev, staging) show the code in the app until WhatsApp sending is set up.
     dev_code = code if s.app_env in ("dev", "staging") and s.otp_mode == "log" else None
     return OtpRequestOut(sent=True, expires_in_seconds=s.otp_ttl_minutes * 60, dev_code=dev_code)
@@ -117,6 +126,9 @@ async def refresh_tokens(body: RefreshIn, db: AsyncSession = Depends(get_db)):
         raise HTTPException(401, "Session expired. Please log in again.")
     token.revoked_at = utcnow()
     user = await db.get(User, token.user_id)
+    if user.deleted_at is not None:
+        await db.commit()
+        raise HTTPException(401, "Session expired. Please log in again.")
     access, refresh = await _issue_tokens(db, user)
     await db.commit()
     return TokenOut(access_token=access, refresh_token=refresh, user=UserOut.model_validate(user))
@@ -168,3 +180,45 @@ async def update_me(body: MeUpdateIn, user: User = Depends(get_current_user), db
     user.name = body.name.strip()
     await db.commit()
     return await _me(db, user)
+
+
+@router.delete("/me", status_code=204)
+async def delete_my_account(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Delete my account (Play Store rule). Logs out everywhere, removes my team roles, my shop's
+    links to distributors, carts and notification tokens, and wipes my name, phone and shop details.
+    Past orders stay with the distributors as business records (with the shop name copied on the bill).
+    The only owner of a distributor can't delete themselves here (the business would be left without one)."""
+    owned = (
+        await db.execute(
+            select(Tenant.id, Tenant.name)
+            .join(TenantMember, TenantMember.tenant_id == Tenant.id)
+            .where(TenantMember.user_id == user.id, TenantMember.role == "owner")
+        )
+    ).all()
+    for tenant_id, name in owned:
+        others = await db.scalar(
+            select(func.count())
+            .select_from(TenantMember)
+            .where(TenantMember.tenant_id == tenant_id, TenantMember.role == "owner", TenantMember.user_id != user.id)
+        )
+        if not others:
+            raise HTTPException(
+                409, f"You are the only owner of {name}. Contact OrderDesk support to close the distributor account first."
+            )
+
+    now = utcnow()
+    await db.execute(update(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None)).values(revoked_at=now))
+    await db.execute(delete(PushToken).where(PushToken.user_id == user.id))
+    await db.execute(delete(TenantMember).where(TenantMember.user_id == user.id))
+    await db.execute(delete(Cart).where(Cart.user_id == user.id))
+    await db.execute(update(DistributorShop).where(DistributorShop.agent_user_id == user.id).values(agent_user_id=None))
+    shop = await db.scalar(select(Shop).where(Shop.owner_user_id == user.id))
+    if shop is not None:
+        await db.execute(delete(Cart).where(Cart.shop_id == shop.id))
+        await db.execute(delete(DistributorShop).where(DistributorShop.shop_id == shop.id))
+        shop.shop_name, shop.owner_name, shop.address, shop.city = "Deleted shop", "", "", ""
+        shop.pincode, shop.lat, shop.lng, shop.photo_url = "000000", None, None, None
+    user.phone = f"deleted-{secrets.token_hex(4)}"
+    user.name = None
+    user.deleted_at = now
+    await db.commit()

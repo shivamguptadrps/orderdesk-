@@ -14,6 +14,8 @@ class User(UUIDPk, Timestamps, Base):
 
     phone: Mapped[str] = mapped_column(String(16), unique=True)
     name: Mapped[str | None] = mapped_column(String(120))
+    # Set when the person deleted their account; the phone is replaced so the number can sign up again.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class OtpRequest(UUIDPk, CreatedAt, Base):

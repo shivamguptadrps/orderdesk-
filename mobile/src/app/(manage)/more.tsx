@@ -5,6 +5,7 @@ import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
+import { AccountLinks } from '@/components/AccountLinks';
 import { NotificationStatus } from '@/components/NotificationStatus';
 import { SoundToggle } from '@/components/SoundToggle';
 import { BrandHeader, cardStyle, IconBubble, SectionHeader, ShortcutTile, type Tone } from '@/components/manage/kit';
@@ -165,6 +166,7 @@ export default function MoreScreen() {
           <Ionicons name="log-out-outline" size={20} color={colors.error} />
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
+        <AccountLinks />
         <Text style={styles.footer}>
           OrderDesk · {current?.name}
           {BUILT ? `

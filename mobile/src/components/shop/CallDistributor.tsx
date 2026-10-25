@@ -36,9 +36,9 @@ export function CallDistributor({ tenantId, name, onGreen = false }: { tenantId?
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.title, onGreen && { color: '#FFFFFF' }]} numberOfLines={1}>
-          Call {who} · {phoneLabel(phone)}
+          Call {who}
         </Text>
-        <Text style={[styles.sub, onGreen && { color: 'rgba(255,255,255,0.85)' }]}>To confirm your order fast</Text>
+        <Text style={[styles.sub, onGreen && { color: 'rgba(255,255,255,0.85)' }]}>{phoneLabel(phone)} · to confirm your order fast</Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={onGreen ? '#FFFFFF' : colors.muted} />
     </Pressable>

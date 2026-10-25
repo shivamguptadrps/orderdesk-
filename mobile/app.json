@@ -8,19 +8,26 @@
     "scheme": "orderdesk",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "in.orderdesk.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1F6FEB",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "in.orderdesk.app",
-      "versionCode": 1
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "output": "single",
@@ -31,9 +38,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#1F6FEB",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 110
         }
       ],
       "expo-secure-store",
@@ -41,14 +48,18 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "OrderDesk uses the camera to scan your distributor's QR code."
+          "cameraPermission": "OrderDesk uses the camera to scan your distributor's QR code.",
+          "recordAudioAndroid": false,
+          "microphonePermission": false
         }
       ],
       [
         "expo-notifications",
         {
           "color": "#1F6FEB",
-          "sounds": ["./assets/sounds/order_ring.wav"]
+          "sounds": [
+            "./assets/sounds/order_ring.wav"
+          ]
         }
       ],
       [

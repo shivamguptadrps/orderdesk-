@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AccountLinks } from '@/components/AccountLinks';
 import { NotificationStatus } from '@/components/NotificationStatus';
 import { SoundToggle } from '@/components/SoundToggle';
 import { Button, Card, Loading, SectionTitle, StatusBadge } from '@/components/ui';
@@ -168,6 +169,7 @@ export default function ProfileScreen() {
       <View style={{ height: space.md }} />
       <Button title="Check server connection" variant="secondary" icon="pulse-outline" onPress={() => router.push('/health')} />
       <Button title="Log out" variant="danger" icon="log-out-outline" onPress={logout} style={{ marginTop: space.md }} />
+      <AccountLinks />
     </ScrollView>
   );
 }

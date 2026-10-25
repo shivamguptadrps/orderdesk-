@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import html
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -84,6 +85,25 @@ IMPORT_PAGE = Path(__file__).parent / "assets" / "import.html"
 async def import_page() -> HTMLResponse:
     """Excel import page for distributors (open on a computer)."""
     return HTMLResponse(IMPORT_PAGE.read_text(encoding="utf-8"))
+
+
+def _page(name: str) -> HTMLResponse:
+    """A page from app/assets with the support contact filled in."""
+    email = settings.support_email.strip()
+    support = f'<a href="mailto:{html.escape(email)}">{html.escape(email)}</a>' if email else "the contact email on our Play Store page"
+    return HTMLResponse((Path(__file__).parent / "assets" / name).read_text(encoding="utf-8").replace("{{SUPPORT}}", support))
+
+
+@app.get("/privacy", include_in_schema=False, response_class=HTMLResponse)
+async def privacy_page() -> HTMLResponse:
+    """Privacy policy (linked from the Play Store listing)."""
+    return _page("privacy.html")
+
+
+@app.get("/delete-account", include_in_schema=False, response_class=HTMLResponse)
+async def delete_account_page() -> HTMLResponse:
+    """Account deletion without the app (Play Store rule)."""
+    return _page("delete-account.html")
 
 
 def _web_root() -> Path | None:
