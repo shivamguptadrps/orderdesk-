@@ -62,7 +62,8 @@ async def get_buyer(
 ) -> Buyer:
     """A shop orders for itself. An agent orders for one of its assigned active shops; staff for any active shop."""
     resolved = await resolve_shop(db, ctx, shop_id)
-    source = "shop" if ctx.role == "shop" else "agent" if ctx.role == "agent" else "admin"
+    own = resolved is not None and resolved == ctx.shop_id
+    source = "shop" if own else "agent" if ctx.role == "agent" else "admin"
     return Buyer(ctx, resolved, source)
 
 

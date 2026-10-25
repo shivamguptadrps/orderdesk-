@@ -302,3 +302,38 @@ async def test_agents_are_scoped_to_their_distributor(client, ag):
     members = (await client.get(f"/t/{a.id}/members", headers=ag["owner"])).json()
     assert any(m["user_id"] == ag["agent_id"] for m in members)
     assert (await client.get(f"/t/{b.id}/members", headers=owner_b)).json()[0]["role"] == "owner"
+
+
+# ---------- one person, two roles ----------
+
+
+async def test_staff_who_owns_a_shop_orders_for_it_without_shop_id(client, ag, add_member, make_shop):
+    """Same phone is staff of the distributor and owner of an approved shop (real case: family members)."""
+    t = ag["t"]
+    headers, shop = await make_shop("9555500000", shop_name="Family Store")
+    await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=headers)
+    await client.post(f"{t}/shops/{shop['id']}/approve", headers=ag["owner"])
+    await add_member(ag["a"], "9555500000", "staff")
+
+    res = await client.post(f"{t}/cart/items", json={"unit_id": ag["bag"], "qty": 1}, headers=headers)
+    assert res.status_code == 200, res.text
+    res = await client.post(f"{t}/orders", json={}, headers=headers)
+    assert res.status_code == 201, res.text
+    order = res.json()
+    assert order["shop_name"] == "Family Store" and order["source"] == "shop"
+    # still staff: can approve orders and order for other shops by passing shop_id
+    assert (await client.get(f"{t}/orders", params={"status": "pending"}, headers=headers)).status_code == 200
+    res = await client.post(f"{t}/cart/items", params={"shop_id": ag["shop_id"]}, json={"unit_id": ag["bag"], "qty": 1}, headers=headers)
+    assert res.status_code == 200
+
+
+async def test_agent_who_owns_a_shop_orders_for_it(client, ag, make_shop):
+    t = ag["t"]
+    headers, shop = await make_shop(AGENT, shop_name="Ravi Store")
+    await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=headers)
+    await client.post(f"{t}/shops/{shop['id']}/approve", headers=ag["owner"])
+    for params in ({}, {"shop_id": shop["id"]}):
+        res = await client.post(f"{t}/cart/items", params=params, json={"unit_id": ag["bag"], "qty": 1}, headers=headers)
+        assert res.status_code == 200, res.text
+    res = await client.post(f"{t}/orders", json={}, headers=headers)
+    assert res.status_code == 201 and res.json()["source"] == "shop" and res.json()["shop_name"] == "Ravi Store"

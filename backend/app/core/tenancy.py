@@ -25,7 +25,7 @@ class TenantContext:
     tenant: Tenant
     user: User
     role: str  # owner, staff, agent, or shop
-    shop_id: uuid.UUID | None = None
+    shop_id: uuid.UUID | None = None  # role "shop": the shop; other roles: their own shop here, if any
 
     @property
     def tenant_id(self) -> uuid.UUID:
@@ -45,9 +45,8 @@ async def get_tenant_context(
     role = await db.scalar(
         select(TenantMember.role).where(TenantMember.tenant_id == tenant_id, TenantMember.user_id == user.id)
     )
-    if role is not None:
-        return TenantContext(tenant=tenant, user=user, role=role)
-
+    # The user's own shop, if it is an active customer here. Kept for staff/agents too: one person can
+    # work for a distributor and also order for their own shop from it.
     shop_id = await db.scalar(
         select(DistributorShop.shop_id)
         .join(Shop, Shop.id == DistributorShop.shop_id)
@@ -57,6 +56,8 @@ async def get_tenant_context(
             Shop.owner_user_id == user.id,
         )
     )
+    if role is not None:
+        return TenantContext(tenant=tenant, user=user, role=role, shop_id=shop_id)
     if shop_id is not None:
         return TenantContext(tenant=tenant, user=user, role="shop", shop_id=shop_id)
 
@@ -72,6 +73,8 @@ async def resolve_shop(
         if shop_id is not None and shop_id != ctx.shop_id:
             raise HTTPException(404, "Shop not found")
         return ctx.shop_id
+    if ctx.shop_id is not None and shop_id in (None, ctx.shop_id):
+        return ctx.shop_id  # staff/agent ordering for their own shop
     if shop_id is None:
         if required:
             raise HTTPException(422, "shop_id is required: which shop are you ordering for?")
