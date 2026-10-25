@@ -24,7 +24,7 @@
 | M5 Mobile app: shop owner | Built, phone check pending | 24 Oct 2026 | |
 | M6 Distributor tools | Built, phone check pending | 24 Oct 2026 | |
 | M7 Related products, notifications, polish | Done (push needs `eas init` to reach phones) | 24 Oct 2026 | 25 Oct 2026 |
-| M8 Deploy and pilot | Not started | | |
+| M8 Deploy and pilot | In progress: staging server live | 25 Oct 2026 | |
 
 ## Next up
 
@@ -146,12 +146,12 @@
 
 | ID | Task | Status | Notes |
 | --- | --- | --- | --- |
-| M8-01 | Oracle Cloud Always Free VM (home region Mumbai/Hyderabad) | [ ] | |
-| M8-02 | Docker Compose prod: api, db, caddy | [ ] | |
-| M8-03 | DuckDNS subdomain + HTTPS | [ ] | |
-| M8-04 | Nightly DB backup, 14-day retention | [ ] | |
+| M8-01 | Oracle Cloud Always Free VM (home region Mumbai/Hyderabad) | [x] | Using the existing server 140.245.242.194 (Ubuntu 20.04, 4 CPU, 15 GB) shared with kamkarao.com |
+| M8-02 | Docker Compose prod: api, db, caddy | [x] | `deploy/server/`: own db + api; kamkarao's Caddy proxies to `orderdesk-api`. APP_ENV=staging (codes shown in app) until WhatsApp |
+| M8-03 | DuckDNS subdomain + HTTPS | [x] | https://orderdesk.kamkarao.com (GoDaddy A record, Let's Encrypt via Caddy) |
+| M8-04 | Nightly DB backup, 14-day retention | [x] | root cron 02:30 IST -> ~/orderdesk-backups (db + photos). Copy off-server now and then |
 | M8-05 | Sentry for backend and app | [ ] | |
-| M8-06 | EAS build APK, install on pilot phones | [ ] | |
+| M8-06 | EAS build APK, install on pilot phones | [~] | EAS project linked; `preview` profile = APK for the server. Android push needs Firebase (FCM) |
 | M8-07 | Pilot: uncle + 10 shops for one week; collect feedback | [ ] | |
 | M8-08 | Play Store internal testing → production | [ ] | |
 
@@ -171,6 +171,7 @@
 | 24 Oct 2026 | Phone shows API OK (iPhone, Expo Go). Added start-dev.cmd. M0 closed | M4 agents |
 | 24 Oct 2026 | M4 done: team management, agent shops, ordering for a shop (agent/admin), shop sign-up by agent with optional auto-approve, settings. 111 tests pass; live agent flow checked. Plan updated with status and as-built notes | M5 screens |
 | 24 Oct 2026 | M5 app built: login, shop setup, distributors (code/QR), catalog + search, product page, cart, orders, bill share, reorder/cancel, profile, agent mode. tsc + lint + expo-doctor clean, iOS bundle builds | Phone test, then M6 |
+| 25 Oct 2026 | Server: OrderDesk deployed next to kamkarao.com on 140.245.242.194 (separate db, shared Caddy), laptop data copied, HTTPS at orderdesk.kamkarao.com, nightly backups. Fixed: api first resolved kamkarao's `db` (now `orderdesk-db`) | WhatsApp OTP, FCM, pilot |
 | 25 Oct 2026 | Agent shop assignment: Shops screen opens on Active with No-agent filter, search and an Assign box per shop; Team > agent > tick shops (bulk, moves from other agents); owner setting "Agents can order for all shops". Category page: main categories always in the rail. 146 tests | Phone test, new APK |
 | 25 Oct 2026 | Product page redesign (full photo, pack cards, quantity picker with typing + quick picks), tap-to-type qty everywhere, order review screen before placing (server refuses if the total changed), shop GPS location (sign-up, agent sign-up, profile) saved on each order with Open in Maps for the distributor. Click-through test placed an order with qty 5. 144 tests | Phone test |
 | 25 Oct 2026 | Storefront redesign: brand-colour header with logo + search, distributor banners (photo or text, link to category, order, on/off; More > Home banners), Shop by category grid, Top deals, category page with sub-category rail, new product cards. Sample banners: `scripts/seed_demo_banners.py`. 142 tests | Phone test |
