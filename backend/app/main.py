@@ -16,6 +16,7 @@ from app.core.db import get_db
 from app.core.media import media_root
 from app.modules.auth.router import router as auth_router
 from app.modules.catalog import related
+from app.modules.catalog.router_banners import router as banners_router
 from app.modules.catalog.router_catalog import router as catalog_router
 from app.modules.catalog.router_manage import router as catalog_manage_router
 from app.modules.inventory.router import router as inventory_router
@@ -63,6 +64,7 @@ app.include_router(shops_router)
 app.include_router(tenants_router)
 app.include_router(catalog_manage_router)
 app.include_router(catalog_router)
+app.include_router(banners_router)
 app.include_router(inventory_router)
 app.include_router(orders_router)
 app.include_router(notifications_router)

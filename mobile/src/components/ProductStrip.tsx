@@ -21,14 +21,27 @@ const CARD_WIDTH = 150;
  * A sideways row of products with the same ADD / − qty + control as the grid.
  * Used for "Buy again", "Customers also buy" and "You may also need". Shows nothing when empty.
  */
-export function ProductStrip({ title, ws, path }: { title: string; ws: Workspace; path: string }) {
+export function ProductStrip({
+  title,
+  ws,
+  path,
+  items: given,
+}: {
+  title: string;
+  ws: Workspace;
+  /** Load products from this address (under /t/{tenant}), or pass `items` directly. */
+  path?: string;
+  items?: CatalogCard[];
+}) {
   const router = useRouter();
   const cart = useCart(ws);
   const actions = useCartActions(ws);
-  const items = useQuery({
+  const fetched = useQuery({
     queryKey: ['strip', ws.tenantId, path, ws.agentShop?.id ?? null],
     queryFn: () => api<CatalogCard[]>(`/t/${ws.tenantId}${path}`, { query: shopParam(ws.mode, ws.agentShop) }),
+    enabled: !!path && !given,
   });
+  const items = given ? { isLoading: false, data: given } : fetched;
   const lines = useMemo(() => new Map((cart.data?.items ?? []).map((l) => [l.unit_id, l])), [cart.data]);
   const needsShop = ws.mode === 'agent' && !ws.agentShop;
 
@@ -63,8 +76,9 @@ export function ProductStrip({ title, ws, path }: { title: string; ws: Workspace
                   <Ionicons name="cube-outline" size={30} color={colors.faint} />
                 )}
                 {off ? (
-                  <View style={styles.offBadge}>
-                    <Text style={styles.offText}>{off.percent}% OFF</Text>
+                  <View style={styles.ribbon}>
+                    <Text style={styles.ribbonText}>{off.percent}%</Text>
+                    <Text style={styles.ribbonSmall}>OFF</Text>
                   </View>
                 ) : null}
               </View>
@@ -107,17 +121,20 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   imageBox: { height: 100, backgroundColor: '#F3F5F7', alignItems: 'center', justifyContent: 'center' },
-  offBadge: {
+  ribbon: {
     position: 'absolute',
-    left: 0,
-    top: 6,
-    backgroundColor: colors.ok,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderTopRightRadius: 5,
+    left: 6,
+    top: 0,
+    backgroundColor: colors.primaryDark,
+    paddingHorizontal: 4,
+    paddingTop: 2,
+    paddingBottom: 4,
+    borderBottomLeftRadius: 5,
     borderBottomRightRadius: 5,
+    alignItems: 'center',
   },
-  offText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  ribbonText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', lineHeight: 13 },
+  ribbonSmall: { color: '#FFFFFF', fontSize: 8, fontWeight: '800', lineHeight: 9 },
   body: { padding: space.sm, gap: 2 },
   name: { fontSize: 13, fontWeight: '600', color: colors.text, minHeight: 34, lineHeight: 17 },
   pack: { fontSize: 11, color: colors.muted },

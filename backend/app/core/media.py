@@ -14,6 +14,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from app.core.config import get_settings
 
 SIZES = {"800": 800, "200": 200}
+BANNER_SIZES = {"800": 1400, "200": 500}  # wide banners need more pixels; suffixes stay the same
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 MAX_PIXELS = 40_000_000  # refuse absurdly large images (decompression bombs)
 
@@ -55,12 +56,13 @@ def save_product_image(tenant_id: uuid.UUID, data: bytes) -> str:
     return save_image(tenant_id, data, "products")
 
 
-def save_image(tenant_id: uuid.UUID, data: bytes, kind: str) -> str:
+def save_image(tenant_id: uuid.UUID, data: bytes, kind: str, sizes: dict[str, int] = SIZES) -> str:
+    """Save a large and a small JPEG. `sizes` maps the file suffix to the longest side in pixels."""
     img = _open_image(data)
     folder = media_root() / str(tenant_id) / kind
     folder.mkdir(parents=True, exist_ok=True)
     name = uuid.uuid4().hex
-    for suffix, size in SIZES.items():
+    for suffix, size in sizes.items():
         copy = img.copy()
         copy.thumbnail((size, size), Image.Resampling.LANCZOS)
         copy.save(folder / f"{name}_{suffix}.jpg", "JPEG", quality=85, optimize=True)

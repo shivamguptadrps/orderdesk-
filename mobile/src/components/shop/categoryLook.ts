@@ -8,8 +8,8 @@ const LOOKS: [RegExp, Look][] = [
   [/oil|ghee/i, { icon: 'water-outline', bg: '#FFF8C5', fg: '#9A6700' }],
   [/snack|chip|namkeen|biscuit|cookie/i, { icon: 'fast-food-outline', bg: '#FFEBE9', fg: '#CF222E' }],
   [/beverage|drink|tea|coffee|juice/i, { icon: 'cafe-outline', bg: '#E8F0FE', fg: '#1557C0' }],
-  [/personal|beauty|soap|shampoo|care$/i, { icon: 'sparkles-outline', bg: '#FBEFFF', fg: '#8250DF' }],
   [/home|clean|detergent|wash/i, { icon: 'home-outline', bg: '#DAFBE1', fg: '#1A7F37' }],
+  [/personal|beauty|soap|shampoo|cosmetic/i, { icon: 'sparkles-outline', bg: '#FBEFFF', fg: '#8250DF' }],
   [/dairy|milk/i, { icon: 'nutrition-outline', bg: '#E8F0FE', fg: '#1557C0' }],
   [/baby|kid/i, { icon: 'happy-outline', bg: '#FBEFFF', fg: '#8250DF' }],
 ];

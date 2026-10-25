@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { firstQty } from '@/components/ui';
 import { inr, mediaUrl, packName, saving } from '@/lib/format';
-import { colors, radius, space } from '@/lib/theme';
+import { colors, radius } from '@/lib/theme';
 import type { CartLine, CatalogCard, Unit } from '@/lib/types';
 
 /**
@@ -62,7 +62,7 @@ export function AddControl({
   );
 }
 
-/** Product card for the shop grid: photo, name, pack, price with MRP and saving, and ADD. */
+/** Product card for the shop grid: photo with ADD on its corner, discount ribbon, pack, name, price + MRP. */
 export function ProductTile({
   p,
   line,
@@ -87,13 +87,14 @@ export function ProductTile({
     <Pressable onPress={onOpen} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.92 }]}>
       <View style={styles.imageBox}>
         {p.image ? (
-          <Image source={{ uri: mediaUrl(p.image) }} style={[StyleSheet.absoluteFill, !sellable && { opacity: 0.45 }]} contentFit="cover" transition={150} />
+          <Image source={{ uri: mediaUrl(p.image) }} style={[StyleSheet.absoluteFill, { borderRadius: 10 }, !sellable && { opacity: 0.4 }]} contentFit="cover" transition={150} />
         ) : (
           <Ionicons name="cube-outline" size={36} color={colors.faint} />
         )}
         {off && sellable ? (
-          <View style={styles.offBadge}>
-            <Text style={styles.offText}>{off.percent}% OFF</Text>
+          <View style={styles.ribbon}>
+            <Text style={styles.ribbonText}>{off.percent}%</Text>
+            <Text style={styles.ribbonSmall}>OFF</Text>
           </View>
         ) : null}
         {!sellable && (
@@ -101,24 +102,26 @@ export function ProductTile({
             <Text style={styles.outText}>Out of stock</Text>
           </View>
         )}
+        {sellable && (
+          <View style={styles.addSpot}>
+            <AddControl unit={u} line={line} busy={busy} disabled={locked} onAdd={onAdd} onQty={onQty} />
+          </View>
+        )}
       </View>
       <View style={styles.body}>
+        <View style={styles.packPill}>
+          <Text style={styles.packText} numberOfLines={1}>
+            {packName(u.name, u.pieces_per_unit)}
+          </Text>
+        </View>
         <Text style={styles.name} numberOfLines={2}>
           {p.name}
         </Text>
-        <Text style={styles.pack} numberOfLines={1}>
-          {packName(u.name, u.pieces_per_unit)}
-          {u.pieces_per_unit > 1 ? ` · ${inr(u.price_per_piece)}/pc` : ''}
-        </Text>
-        <View style={styles.bottom}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.price}>{inr(u.price)}</Text>
-            {off ? <Text style={styles.mrp}>MRP {inr(off.mrp)}</Text> : <Text style={styles.mrp}> </Text>}
-          </View>
-          {sellable ? (
-            <AddControl unit={u} line={line} busy={busy} disabled={locked} onAdd={onAdd} onQty={onQty} />
-          ) : null}
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>{inr(u.price)}</Text>
+          {off ? <Text style={styles.mrp}>{inr(off.mrp)}</Text> : null}
         </View>
+        {u.pieces_per_unit > 1 ? <Text style={styles.perPc}>{inr(u.price_per_piece)} / piece</Text> : <Text style={styles.perPc}> </Text>}
       </View>
     </Pressable>
   );
@@ -129,48 +132,66 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: '50%',
     backgroundColor: colors.card,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#EEF0F3',
   },
-  imageBox: { aspectRatio: 1.15, backgroundColor: '#F3F5F7', alignItems: 'center', justifyContent: 'center' },
-  offBadge: {
+  imageBox: {
+    aspectRatio: 1,
+    backgroundColor: '#F4F6F8',
+    borderRadius: 10,
+    overflow: 'visible',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ribbon: {
     position: 'absolute',
-    left: 0,
-    top: 8,
-    backgroundColor: colors.ok,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderTopRightRadius: 6,
+    left: 8,
+    top: 0,
+    backgroundColor: colors.primaryDark,
+    paddingHorizontal: 5,
+    paddingTop: 3,
+    paddingBottom: 5,
+    borderBottomLeftRadius: 6,
     borderBottomRightRadius: 6,
+    alignItems: 'center',
   },
-  offText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  ribbonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900', lineHeight: 14 },
+  ribbonSmall: { color: '#FFFFFF', fontSize: 9, fontWeight: '800', lineHeight: 10 },
   outBadge: {
     position: 'absolute',
     bottom: 8,
     alignSelf: 'center',
-    backgroundColor: 'rgba(31,35,40,0.78)',
+    backgroundColor: 'rgba(31,35,40,0.8)',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   outText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-  body: { padding: space.sm, paddingTop: space.sm, flex: 1 },
-  name: { fontSize: 14, fontWeight: '600', color: colors.text, minHeight: 36, lineHeight: 18 },
-  pack: { fontSize: 12, color: colors.muted, marginTop: 4 },
-  bottom: { flexDirection: 'row', alignItems: 'flex-end', marginTop: space.sm, gap: 6 },
+  addSpot: { position: 'absolute', right: 6, bottom: -14 },
+  body: { paddingHorizontal: 4, paddingTop: 20, paddingBottom: 4 },
+  packPill: { alignSelf: 'flex-start', backgroundColor: '#F1F3F5', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
+  packText: { fontSize: 11, fontWeight: '600', color: colors.muted },
+  name: { fontSize: 13.5, fontWeight: '600', color: colors.text, minHeight: 36, lineHeight: 18, marginTop: 6 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 6 },
   price: { fontSize: 16, fontWeight: '800', color: colors.text },
-  mrp: { fontSize: 11, color: colors.faint, textDecorationLine: 'line-through' },
+  mrp: { fontSize: 12, color: colors.faint, textDecorationLine: 'line-through' },
+  perPc: { fontSize: 11, color: colors.muted, marginTop: 1 },
   add: {
-    minWidth: 66,
-    paddingHorizontal: 10,
+    minWidth: 72,
+    paddingHorizontal: 12,
     borderRadius: radius.sm,
     borderWidth: 1.5,
     borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   addOff: { borderColor: colors.border, backgroundColor: colors.bg },
   addText: { color: colors.primary, fontWeight: '800', fontSize: 13, letterSpacing: 0.3 },
@@ -182,6 +203,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: radius.sm,
     paddingHorizontal: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   stepBtn: { width: 28, height: '100%', alignItems: 'center', justifyContent: 'center' },
   addLg: { backgroundColor: colors.primary },

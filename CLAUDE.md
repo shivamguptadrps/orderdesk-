@@ -93,5 +93,8 @@ first for his uncle, an FMCG distributor in India; other distributors will be on
   (`npx eas init` in mobile/) before phones get tokens.
 - Shop UI: `mobile/src/components/shop/` (ProductTile + AddControl, CartBar, OrderProgress), cart changes via
   `lib/cartActions.ts`. Web preview (`localhost:8081`) works for screenshots; storage goes through `lib/storage.ts`.
+- Storefront: banners in `catalog/router_banners.py` (shops: `/catalog/banners`; staff: `/banners`), app home in
+  `(tabs)/home.tsx` (BannerCarousel, category grid, strips), category page `app/category/[id].tsx`, banner manager
+  `app/manage/banners.tsx`.
 - Expo needs Node >= 22.13 (nvm-windows: `nvm use 22.23.4`). After installing a native package, restart Expo with `-c`.
 - Next: see `docs/TRACKER.md` "Next up".

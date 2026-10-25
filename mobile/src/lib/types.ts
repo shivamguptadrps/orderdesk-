@@ -246,3 +246,14 @@ export type Report = {
   top_shops: { shop_id: string; name: string; orders: number; value: number }[];
   top_agents: { user_id: string; name: string; orders: number; value: number }[];
 };
+
+export type Banner = {
+  id: string;
+  title: string | null;
+  subtitle: string | null;
+  image_url: string | null;
+  color: string | null;
+  link_category_id: string | null;
+  is_active: boolean;
+  sort_order: number;
+};

@@ -55,6 +55,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="setup-shop" options={{ title: 'Shop profile' }} />
         <Stack.Screen name="product/[id]" options={{ title: '' }} />
+        <Stack.Screen name="category/[id]" options={{ title: '' }} />
         <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
         <Stack.Screen name="add-distributor" options={{ title: 'Add distributor' }} />
         <Stack.Screen name="scan" options={{ title: 'Scan QR code' }} />
@@ -69,6 +70,7 @@ export default function RootLayout() {
         <Stack.Screen name="manage/settings" options={{ title: 'Join code & settings' }} />
         <Stack.Screen name="manage/stock" options={{ title: 'Low stock' }} />
         <Stack.Screen name="manage/reports" options={{ title: 'Reports' }} />
+        <Stack.Screen name="manage/banners" options={{ title: 'Home banners' }} />
         <Stack.Screen name="health" options={{ title: 'Server connection' }} />
       </Stack>
     </QueryClientProvider>

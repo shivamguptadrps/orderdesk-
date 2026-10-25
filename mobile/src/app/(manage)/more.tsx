@@ -42,6 +42,7 @@ export default function MoreScreen() {
         <Item icon="storefront-outline" label="Shops" badge={dash.data?.shops_waiting} sub="Approve requests, assign agents" onPress={() => router.push('/manage/shops')} border />
         <Item icon="alert-circle-outline" label="Low stock" badge={dash.data?.low_stock} sub="Products running out" onPress={() => router.push('/manage/stock')} border />
         <Item icon="people-outline" label="Team" sub="Agents and staff" onPress={() => router.push('/manage/team')} border />
+        <Item icon="images-outline" label="Home banners" sub="Offers shops see at the top of the app" onPress={() => router.push('/manage/banners')} border />
         <Item icon="qr-code-outline" label="Join code & settings" sub={isOwner ? 'QR to share, name, colour, logo' : 'QR to share'} onPress={() => router.push('/manage/settings')} border />
       </Card>
 

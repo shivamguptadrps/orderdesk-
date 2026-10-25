@@ -1,22 +1,26 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProductStrip } from '@/components/ProductStrip';
+import { BannerCarousel } from '@/components/shop/BannerCarousel';
 import { CartBar } from '@/components/shop/CartBar';
 import { categoryLook } from '@/components/shop/categoryLook';
 import { ProductTile } from '@/components/shop/ProductTile';
 import { Button, Empty, ErrorView, Loading, SkeletonList } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useCartActions } from '@/lib/cartActions';
+import { isHex, shade } from '@/lib/color';
 import { useCart, useWorkspace, type Workspace } from '@/lib/data';
-import { mediaUrl } from '@/lib/format';
+import { mediaUrl, saving } from '@/lib/format';
 import { colors, radius, space } from '@/lib/theme';
-import type { CatalogCard, CategoryNode, Page } from '@/lib/types';
+import type { Banner, CatalogCard, CategoryNode, Page } from '@/lib/types';
 
 export default function Home() {
   const ws = useWorkspace();
@@ -48,326 +52,294 @@ export default function Home() {
       </SafeAreaView>
     );
   }
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.card }} edges={['top']}>
-      <Header ws={current} shopName={ws.me.data?.shop?.shop_name} canSwitch={ws.shopOptions.length + ws.agentOptions.length + ws.manageOptions.length > 1} />
-      {current.mode === 'agent' && !current.agentShop ? (
-        <View style={{ flex: 1, backgroundColor: colors.bg }}>
-          <Empty
-            icon="people-outline"
-            title="Choose a shop"
-            text="Pick the shop you are ordering for."
-            action={<Button title="Choose shop" onPress={() => router.push('/agent/shops')} />}
-          />
-        </View>
-      ) : (
-        <Catalog ws={current} />
-      )}
-    </SafeAreaView>
-  );
+  const canSwitch = ws.shopOptions.length + ws.agentOptions.length + ws.manageOptions.length > 1;
+  return <Storefront ws={current} shopName={ws.me.data?.shop?.shop_name} canSwitch={canSwitch} />;
 }
 
-function Header({ ws, shopName, canSwitch }: { ws: Workspace; shopName?: string; canSwitch: boolean }) {
+function Storefront({ ws, shopName, canSwitch }: { ws: Workspace; shopName?: string; canSwitch: boolean }) {
   const router = useRouter();
-  const forShop = ws.mode === 'agent' ? ws.agentShop?.name : shopName;
-  return (
-    <View style={styles.header}>
-      <Pressable onPress={() => router.push('/choose')} disabled={!canSwitch} style={styles.headerMain}>
-        <View style={[styles.logo, ws.brandColor ? { backgroundColor: ws.brandColor } : null]}>
-          {ws.logoUrl ? (
-            <Image source={{ uri: mediaUrl(ws.logoUrl) }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          ) : (
-            <Text style={styles.logoText}>{ws.name.slice(0, 1).toUpperCase()}</Text>
-          )}
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={styles.row}>
-            <Text style={styles.headerName} numberOfLines={1}>
-              {ws.name}
-            </Text>
-            {canSwitch && <Ionicons name="chevron-down" size={16} color={colors.text} style={{ marginLeft: 2 }} />}
-          </View>
-          {forShop ? (
-            <Text style={styles.headerSub} numberOfLines={1}>
-              {ws.mode === 'agent' ? 'Ordering for ' : 'Delivering to '}
-              <Text style={{ fontWeight: '700', color: colors.text }}>{forShop}</Text>
-            </Text>
-          ) : null}
-        </View>
-      </Pressable>
-      {ws.mode === 'agent' && (
-        <Pressable onPress={() => router.push('/agent/shops')} hitSlop={8} style={styles.headerIcon} accessibilityLabel="Change shop">
-          <Ionicons name="storefront-outline" size={20} color={colors.primaryDark} />
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-function Catalog({ ws }: { ws: Workspace }) {
-  const router = useRouter();
-  const cart = useCart(ws);
-  const actions = useCartActions(ws);
+  const brand = isHex(ws.brandColor) ? ws.brandColor : colors.primary;
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
-  const [topId, setTopId] = useState<string | null>(null);
-  const [subId, setSubId] = useState<string | null>(null);
-
   useEffect(() => {
     const timer = setTimeout(() => setQ(search.trim()), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const categories = useQuery({
-    queryKey: ['categories', ws.tenantId],
-    queryFn: () => api<CategoryNode[]>(`/t/${ws.tenantId}/catalog/categories`),
-  });
-  const categoryId = subId ?? topId;
-  const products = useQuery({
-    queryKey: ['products', ws.tenantId, categoryId, q],
-    queryFn: () =>
-      api<Page<CatalogCard>>(`/t/${ws.tenantId}/catalog/products`, {
-        query: { category_id: categoryId, q, limit: 100 },
-      }),
-  });
-
-  const top = useMemo(() => categories.data?.find((c) => c.id === topId), [categories.data, topId]);
-  const lines = useMemo(() => new Map((cart.data?.items ?? []).map((l) => [l.unit_id, l])), [cart.data]);
-  const browsing = !q && !topId;
-  const heading = q ? `Results for “${q}”` : subId ? top?.children.find((c) => c.id === subId)?.name : top ? top.name : 'All products';
-
-  const listHeader = (
-    <View>
-      {!q && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats} style={styles.catsScroll}>
-          <CategoryTile name="All" icon="grid-outline" bg={colors.primarySoft} fg={colors.primary} active={!topId} onPress={() => {
-            setTopId(null);
-            setSubId(null);
-          }} />
-          {(categories.data ?? []).map((c, i) => {
-            const look = categoryLook(c.name, i);
-            return (
-              <CategoryTile
-                key={c.id}
-                name={c.name}
-                icon={look.icon}
-                bg={look.bg}
-                fg={look.fg}
-                active={topId === c.id}
-                onPress={() => {
-                  setTopId(c.id);
-                  setSubId(null);
-                }}
-              />
-            );
-          })}
-        </ScrollView>
-      )}
-      {!q && top && top.children.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subs} style={{ flexGrow: 0 }}>
-          <Chip label="All" active={!subId} onPress={() => setSubId(null)} />
-          {top.children.map((c) => (
-            <Chip key={c.id} label={c.name} active={subId === c.id} onPress={() => setSubId(c.id)} />
-          ))}
-        </ScrollView>
-      )}
-      {browsing && (
-        <View style={styles.strip}>
-          <ProductStrip title="Buy again" ws={ws} path="/cart/suggestions" />
-        </View>
-      )}
-      <View style={styles.headingRow}>
-        <Text style={styles.heading} numberOfLines={1}>
-          {heading}
-        </Text>
-        {products.data ? <Text style={styles.count}>{products.data.total} items</Text> : null}
-      </View>
-    </View>
+  // White status bar text over the coloured header while this screen is in front.
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle('light');
+      return () => setStatusBarStyle('dark');
+    }, []),
   );
+
+  const forShop = ws.mode === 'agent' ? ws.agentShop?.name : shopName;
+  const needsShop = ws.mode === 'agent' && !ws.agentShop;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={styles.searchWrap}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={colors.muted} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search sugar, cheeni, चीनी…"
-            placeholderTextColor={colors.faint}
-            style={styles.searchInput}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {search ? (
-            <Pressable onPress={() => setSearch('')} hitSlop={10} accessibilityLabel="Clear search">
-              <Ionicons name="close-circle" size={18} color={colors.faint} />
+      <LinearGradient colors={[shade(brand, -0.25), brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <SafeAreaView edges={['top']}>
+          <View style={styles.header}>
+            <Pressable onPress={() => router.push('/choose')} disabled={!canSwitch} style={styles.headerMain} accessibilityLabel="Switch distributor">
+              <View style={styles.logo}>
+                {ws.logoUrl ? (
+                  <Image source={{ uri: mediaUrl(ws.logoUrl) }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                ) : (
+                  <Text style={[styles.logoText, { color: brand }]}>{ws.name.slice(0, 1).toUpperCase()}</Text>
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.row}>
+                  <Text style={styles.headerName} numberOfLines={1}>
+                    {ws.name}
+                  </Text>
+                  {canSwitch && <Ionicons name="chevron-down" size={16} color="#FFFFFF" style={{ marginLeft: 3 }} />}
+                </View>
+                {forShop ? (
+                  <View style={styles.row}>
+                    <Ionicons name="location-sharp" size={12} color="rgba(255,255,255,0.85)" />
+                    <Text style={styles.headerSub} numberOfLines={1}>
+                      {ws.mode === 'agent' ? ' Ordering for ' : ' Delivering to '}
+                      <Text style={{ fontWeight: '800', color: '#FFFFFF' }}>{forShop}</Text>
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </Pressable>
-          ) : null}
-        </View>
-      </View>
+            {ws.mode === 'agent' && (
+              <Pressable onPress={() => router.push('/agent/shops')} hitSlop={8} style={styles.headerIcon} accessibilityLabel="Change shop">
+                <Ionicons name="storefront" size={18} color="#FFFFFF" />
+              </Pressable>
+            )}
+          </View>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color={colors.muted} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder='Search "sugar", "cheeni", "चीनी"'
+              placeholderTextColor={colors.faint}
+              style={styles.searchInput}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {search ? (
+              <Pressable onPress={() => setSearch('')} hitSlop={10} accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" size={18} color={colors.faint} />
+              </Pressable>
+            ) : null}
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
 
-      {products.isError ? (
-        <ErrorView message={errorText(products.error)} onRetry={() => products.refetch()} />
-      ) : (
-        <FlatList
-          data={products.data?.items ?? []}
-          keyExtractor={(p) => p.id}
-          numColumns={2}
-          columnWrapperStyle={{ gap: space.md, paddingHorizontal: space.lg }}
-          contentContainerStyle={{ gap: space.md, paddingBottom: 96, flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={products.isRefetching}
-              onRefresh={() => {
-                void products.refetch();
-                void categories.refetch();
-                void cart.refetch();
-              }}
-            />
-          }
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={
-            products.isLoading ? (
-              <SkeletonList variant="grid" count={4} />
-            ) : (
-              <Empty icon="search-outline" title="Nothing found" text={q ? `No products match “${q}”. Try another spelling.` : 'No products here yet.'} />
-            )
-          }
-          renderItem={({ item }) => (
-            <ProductTile
-              p={item}
-              line={lines.get(item.default_unit.id)}
-              busy={actions.busy === item.id}
-              onOpen={() => router.push(`/product/${item.id}`)}
-              onAdd={() => actions.add(item.id, item.default_unit)}
-              onQty={(qty) => {
-                const line = lines.get(item.default_unit.id);
-                if (line) actions.setQty(item.id, line, qty);
-              }}
-            />
-          )}
+      {needsShop ? (
+        <Empty
+          icon="people-outline"
+          title="Choose a shop"
+          text="Pick the shop you are ordering for."
+          action={<Button title="Choose shop" onPress={() => router.push('/agent/shops')} />}
         />
+      ) : (
+        <Feed ws={ws} q={q} />
       )}
       <CartBar ws={ws} />
     </View>
   );
 }
 
-function CategoryTile({
-  name,
-  icon,
-  bg,
-  fg,
-  active,
-  onPress,
-}: {
-  name: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  bg: string;
-  fg: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.catTile} accessibilityRole="button" accessibilityState={{ selected: active }}>
-      <View style={[styles.catIcon, { backgroundColor: bg }, active && { borderColor: fg }]}>
-        <Ionicons name={icon} size={26} color={fg} />
+function Feed({ ws, q }: { ws: Workspace; q: string }) {
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const cart = useCart(ws);
+  const actions = useCartActions(ws);
+  const base = `/t/${ws.tenantId}`;
+  const categories = useQuery({ queryKey: ['categories', ws.tenantId], queryFn: () => api<CategoryNode[]>(`${base}/catalog/categories`) });
+  const banners = useQuery({ queryKey: ['banners', ws.tenantId], queryFn: () => api<Banner[]>(`${base}/catalog/banners`) });
+  const products = useQuery({
+    queryKey: ['products', ws.tenantId, null, q],
+    queryFn: () => api<Page<CatalogCard>>(`${base}/catalog/products`, { query: { q, limit: 100 } }),
+  });
+  const lines = useMemo(() => new Map((cart.data?.items ?? []).map((l) => [l.unit_id, l])), [cart.data]);
+  const deals = useMemo(
+    () =>
+      (products.data?.items ?? [])
+        .filter((p) => p.in_stock)
+        .map((p) => ({ p, off: saving(p.mrp, p.default_unit.price, p.default_unit.pieces_per_unit)?.percent ?? 0 }))
+        .filter((d) => d.off >= 5)
+        .sort((a, b) => b.off - a.off)
+        .slice(0, 10)
+        .map((d) => d.p),
+    [products.data],
+  );
+  // 4 per row; up to 5 categories fit in one row so none is left alone on a second line.
+  const catCount = categories.data?.length ?? 0;
+  const perRow = catCount === 5 ? 5 : 4;
+  const tileW = (Math.min(width, 700) - space.lg * 2 - 10 * (perRow - 1)) / perRow;
+
+  const refresh = () => {
+    void products.refetch();
+    void categories.refetch();
+    void banners.refetch();
+    void cart.refetch();
+  };
+
+  const header = q ? (
+    <SectionHead title={`Results for “${q}”`} right={products.data ? `${products.data.total} items` : undefined} />
+  ) : (
+    <View>
+      <View style={{ marginTop: space.lg }}>
+        <BannerCarousel
+          banners={banners.data ?? []}
+          onOpen={(b) => b.link_category_id && router.push(`/category/${b.link_category_id}`)}
+        />
       </View>
-      <Text style={[styles.catName, active && { color: colors.text, fontWeight: '800' }]} numberOfLines={2}>
-        {name}
-      </Text>
-    </Pressable>
+
+      {(categories.data ?? []).length > 0 && (
+        <View style={styles.section}>
+          <SectionHead title="Shop by category" />
+          <View style={styles.catGrid}>
+            {(categories.data ?? []).map((c, i) => {
+              const look = categoryLook(c.name, i);
+              return (
+                <Pressable
+                  key={c.id}
+                  onPress={() => router.push(`/category/${c.id}`)}
+                  style={({ pressed }) => [{ width: tileW }, pressed && { opacity: 0.8 }]}
+                  accessibilityRole="button">
+                  <View style={[styles.catIcon, { backgroundColor: look.bg, height: tileW }]}>
+                    {c.image_url ? (
+                      <Image source={{ uri: mediaUrl(c.image_url) }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    ) : (
+                      <Ionicons name={look.icon} size={Math.min(tileW * 0.42, 34)} color={look.fg} />
+                    )}
+                  </View>
+                  <Text style={styles.catName} numberOfLines={2}>
+                    {c.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      <View style={styles.stripWrap}>
+        <ProductStrip title="Buy again" ws={ws} path="/cart/suggestions" />
+      </View>
+      {deals.length > 0 && (
+        <View style={styles.stripWrap}>
+          <ProductStrip title="Top deals" ws={ws} items={deals} />
+        </View>
+      )}
+      <View style={styles.section}>
+        <SectionHead title="All products" right={products.data ? `${products.data.total} items` : undefined} />
+      </View>
+    </View>
+  );
+
+  if (products.isError) return <ErrorView message={errorText(products.error)} onRetry={() => products.refetch()} />;
+  return (
+    <FlatList
+      data={products.data?.items ?? []}
+      keyExtractor={(p) => p.id}
+      numColumns={2}
+      columnWrapperStyle={{ gap: 10, paddingHorizontal: space.lg }}
+      contentContainerStyle={{ gap: 12, paddingBottom: 110, flexGrow: 1 }}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      refreshControl={<RefreshControl refreshing={products.isRefetching} onRefresh={refresh} />}
+      ListHeaderComponent={header}
+      ListEmptyComponent={
+        products.isLoading ? (
+          <SkeletonList variant="grid" count={4} />
+        ) : (
+          <Empty icon="search-outline" title="Nothing found" text={q ? `No products match “${q}”. Try another spelling.` : 'No products here yet.'} />
+        )
+      }
+      renderItem={({ item }) => (
+        <ProductTile
+          p={item}
+          line={lines.get(item.default_unit.id)}
+          busy={actions.busy === item.id}
+          onOpen={() => router.push(`/product/${item.id}`)}
+          onAdd={() => actions.add(item.id, item.default_unit)}
+          onQty={(qty) => {
+            const line = lines.get(item.default_unit.id);
+            if (line) actions.setQty(item.id, line, qty);
+          }}
+        />
+      )}
+    />
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function SectionHead({ title, right }: { title: string; right?: string }) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </Pressable>
+    <View style={styles.sectionHead}>
+      <Text style={styles.sectionTitle} numberOfLines={1}>
+        {title}
+      </Text>
+      {right ? <Text style={styles.sectionRight}>{right}</Text> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: space.lg,
-    paddingTop: space.sm,
-    paddingBottom: space.md,
-    gap: space.sm,
-    backgroundColor: colors.card,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.sm },
   headerMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md },
   logo: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 12,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  logoText: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
-  headerName: { fontSize: 18, fontWeight: '800', color: colors.text, flexShrink: 1 },
-  headerSub: { fontSize: 13, color: colors.muted, marginTop: 1 },
-  headerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  searchWrap: {
-    backgroundColor: colors.card,
-    paddingHorizontal: space.lg,
-    paddingBottom: space.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+  logoText: { fontSize: 22, fontWeight: '900' },
+  headerName: { fontSize: 19, fontWeight: '800', color: '#FFFFFF', flexShrink: 1 },
+  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
+  headerIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
+    marginHorizontal: space.lg,
+    marginTop: space.md,
+    marginBottom: space.lg,
     paddingHorizontal: space.md,
     borderRadius: radius.md,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
-  searchInput: { flex: 1, minHeight: 44, fontSize: 16, color: colors.text },
-  catsScroll: { flexGrow: 0, backgroundColor: colors.card },
-  cats: { paddingHorizontal: space.md, paddingTop: space.md, paddingBottom: space.md, gap: 4 },
-  catTile: { width: 76, alignItems: 'center' },
-  catIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  catName: { fontSize: 12, fontWeight: '600', color: colors.muted, marginTop: 6, textAlign: 'center' },
-  subs: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.text, borderColor: colors.text },
-  chipText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  chipTextActive: { color: '#FFFFFF' },
-  strip: { paddingLeft: space.lg },
-  headingRow: {
+  searchInput: { flex: 1, minHeight: 46, fontSize: 15, color: colors.text },
+  section: { marginTop: space.xl },
+  sectionHead: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     paddingHorizontal: space.lg,
-    marginTop: space.lg,
-    marginBottom: 2,
+    marginBottom: space.md,
+    marginTop: space.sm,
   },
-  heading: { fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
-  count: { fontSize: 13, color: colors.muted },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
+  sectionRight: { fontSize: 13, color: colors.muted },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, rowGap: space.md, paddingHorizontal: space.lg },
+  catIcon: { borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  catName: { fontSize: 12, fontWeight: '600', color: colors.text, textAlign: 'center', marginTop: 6, lineHeight: 15 },
+  stripWrap: { paddingLeft: space.lg, marginTop: space.sm },
 });

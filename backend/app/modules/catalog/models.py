@@ -143,3 +143,25 @@ class ProductRelation(Base):
     bought_together: Mapped[int] = mapped_column(default=0, server_default="0")  # orders with both
     pinned: Mapped[bool] = mapped_column(default=False, server_default=false())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
+
+
+class Banner(UUIDPk, Timestamps, Base):
+    """An offer banner on the shop home screen: a photo, or just a title on the banner colour.
+
+    Tapping it opens `link_category_id` (if set). Only active banners are shown, by sort_order.
+    """
+
+    __tablename__ = "banners"
+    __table_args__ = (
+        CheckConstraint("image_url IS NOT NULL OR title IS NOT NULL", name="has_content"),
+        Index("ix_banners_tenant_id_sort_order", "tenant_id", "sort_order"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    title: Mapped[str | None] = mapped_column(String(80))
+    subtitle: Mapped[str | None] = mapped_column(String(140))
+    image_url: Mapped[str | None] = mapped_column(String(500))
+    color: Mapped[str | None] = mapped_column(String(7))  # background when there is no photo, e.g. #1F6FEB
+    link_category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"))
+    is_active: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
+    sort_order: Mapped[int] = mapped_column(default=0, server_default="0")
