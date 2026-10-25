@@ -116,9 +116,9 @@ export default function QueueScreen() {
                   </View>
                   {item.source !== 'shop' && item.placed_by_name ? (
                     <View style={styles.agent}>
-                      <Ionicons name={item.source === 'agent' ? 'briefcase-outline' : 'business-outline'} size={12} color={colors.primaryDark} />
+                      <Ionicons name={item.source === 'agent' ? 'briefcase-outline' : item.source === 'counter' ? 'cash-outline' : 'business-outline'} size={12} color={colors.primaryDark} />
                       <Text style={styles.agentText} numberOfLines={1}>
-                        {item.placed_by_name}
+                        {item.source === 'counter' ? `Counter · ${item.placed_by_name}` : item.placed_by_name}
                       </Text>
                     </View>
                   ) : null}

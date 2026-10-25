@@ -8,11 +8,16 @@ import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'rea
 import { NotificationStatus } from '@/components/NotificationStatus';
 import { SoundToggle } from '@/components/SoundToggle';
 import { BrandHeader, cardStyle, IconBubble, SectionHeader, ShortcutTile, type Tone } from '@/components/manage/kit';
+import Constants from 'expo-constants';
+
 import { API_URL } from '@/lib/api';
+import { dateTime } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 import { useDashboard, useManage, useTenant } from '@/lib/manage';
 import { useSession } from '@/lib/session';
 import { colors, radius, space } from '@/lib/theme';
+
+const BUILT: string | undefined = Constants.expoConfig?.extra?.builtAt;
 
 export default function MoreScreen() {
   const { ws, current, tenantId, isOwner } = useManage();
@@ -25,8 +30,11 @@ export default function MoreScreen() {
   useFocusEffect(
     useCallback(() => {
       setStatusBarStyle('light');
+      // Pick up shop links approved since last time (e.g. your own shop), so Switch is up to date.
+      void qc.invalidateQueries({ queryKey: ['myDistributors'] });
+      void qc.invalidateQueries({ queryKey: ['me'] });
       return () => setStatusBarStyle('dark');
-    }, []),
+    }, [qc]),
   );
 
   function logout() {
@@ -51,6 +59,8 @@ export default function MoreScreen() {
 
   const importUrl = `${API_URL}/import`;
   const others = [...ws.shopOptions, ...ws.agentOptions, ...ws.manageOptions.filter((o) => o.tenantId !== tenantId)];
+  // Distributors your shop asked to join that haven't approved it yet: shown so the option doesn't just vanish.
+  const waiting = (ws.distributors.data ?? []).filter((d) => d.status === 'pending');
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={{ paddingBottom: 48 }}>
@@ -114,39 +124,52 @@ export default function MoreScreen() {
         <View style={{ height: space.md }} />
         <SoundToggle />
 
-        {(others.length > 0 || !ws.me.data?.shop) && (
-          <>
-            <SectionHeader title="Switch" />
-            <View style={[cardStyle, { paddingHorizontal: space.lg }]}>
-              {others.map((o, i) => (
-                <Row
-                  key={`${o.mode}-${o.tenantId}`}
-                  icon={o.mode === 'manage' ? 'business' : o.mode === 'agent' ? 'briefcase' : 'cart'}
-                  tone={o.mode === 'shop' ? 'green' : 'purple'}
-                  label={o.mode === 'manage' ? `Manage ${o.name}` : o.mode === 'agent' ? `Agent for ${o.name}` : `Order from ${o.name}`}
-                  sub={o.mode === 'shop' ? 'Shop as your own shop' : undefined}
-                  border={i > 0}
-                  onPress={() => {
-                    const s = useSession.getState();
-                    if (o.mode === 'manage') s.chooseManageMode(o.tenantId);
-                    else if (o.mode === 'agent') s.chooseAgentMode(o.tenantId);
-                    else s.chooseShopMode(o.tenantId);
-                    router.replace(o.mode === 'manage' ? '/dashboard' : o.mode === 'agent' ? '/agent/shops' : '/home');
-                  }}
-                />
-              ))}
-              {!ws.me.data?.shop && (
-                <Row icon="storefront" tone="grey" label="I also run a shop" sub="Set up a shop profile to order" onPress={() => router.push('/setup-shop')} border={others.length > 0} />
-              )}
-            </View>
-          </>
-        )}
+        <SectionHeader title="Switch" />
+        <View style={[cardStyle, { paddingHorizontal: space.lg }]}>
+          {others.map((o, i) => (
+            <Row
+              key={`${o.mode}-${o.tenantId}`}
+              icon={o.mode === 'manage' ? 'business' : o.mode === 'agent' ? 'briefcase' : 'cart'}
+              tone={o.mode === 'shop' ? 'green' : 'purple'}
+              label={o.mode === 'manage' ? `Manage ${o.name}` : o.mode === 'agent' ? `Agent for ${o.name}` : `Order from ${o.name}`}
+              sub={o.mode === 'shop' ? 'Shop as your own shop' : undefined}
+              border={i > 0}
+              onPress={() => {
+                const s = useSession.getState();
+                if (o.mode === 'manage') s.chooseManageMode(o.tenantId);
+                else if (o.mode === 'agent') s.chooseAgentMode(o.tenantId);
+                else s.chooseShopMode(o.tenantId);
+                router.replace(o.mode === 'manage' ? '/dashboard' : o.mode === 'agent' ? '/agent/shops' : '/home');
+              }}
+            />
+          ))}
+          {waiting.map((d, i) => (
+            <Row
+              key={`wait-${d.tenant_id}`}
+              icon="time-outline"
+              tone="amber"
+              label={`Order from ${d.name}`}
+              sub="Waiting for the distributor to approve your shop"
+              border={others.length + i > 0}
+              onPress={() => Alert.alert('Waiting for approval', `${d.name} needs to approve your shop first. You'll get a notification when they do.`)}
+            />
+          ))}
+          {ws.me.data?.shop ? (
+            <Row icon="add-circle-outline" tone="grey" label="Order from another distributor" sub="Enter a join code" onPress={() => router.push('/add-distributor')} border={others.length + waiting.length > 0} />
+          ) : (
+            <Row icon="storefront" tone="grey" label="I also run a shop" sub="Set up a shop profile to order" onPress={() => router.push('/setup-shop')} border={others.length > 0} />
+          )}
+        </View>
 
         <Pressable onPress={logout} style={[cardStyle, styles.logout]} accessibilityRole="button">
           <Ionicons name="log-out-outline" size={20} color={colors.error} />
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
-        <Text style={styles.footer}>OrderDesk · {current?.name}</Text>
+        <Text style={styles.footer}>
+          OrderDesk · {current?.name}
+          {BUILT ? `
+App built ${dateTime(BUILT)}` : ''}
+        </Text>
       </View>
     </ScrollView>
   );

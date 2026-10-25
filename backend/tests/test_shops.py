@@ -60,3 +60,20 @@ async def test_join_needs_shop_profile(client, login, make_tenant):
     res = await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=headers)
     assert res.status_code == 404
     assert "shop profile" in res.json()["detail"]
+
+
+async def test_own_team_joins_own_distributor_without_approval(client, make_shop, make_tenant, add_member):
+    """Owner/staff who also run a shop can order from their own distributor straight away; agents still wait."""
+    tenant = await make_tenant("Gupta Traders", owner_phone="9000000001", join_code="GUPTA7")
+    await add_member(tenant, "9000000005", "staff")
+    await add_member(tenant, "9000000006", "agent")
+    for phone, expected in (("9000000001", "active"), ("9000000005", "active"), ("9000000006", "pending")):
+        headers, _ = await make_shop(phone)
+        res = await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=headers)
+        assert res.status_code == 201 and res.json()["status"] == expected, (phone, res.text)
+    # staff of another distributor is just a normal shop here
+    other = await make_tenant("Verma Agencies", owner_phone="9000000002", join_code="VERMA8")
+    headers, _ = await make_shop("9000000007")
+    await add_member(other, "9000000007", "staff")
+    res = await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=headers)
+    assert res.json()["status"] == "pending"

@@ -147,11 +147,11 @@ export default function DashboardScreen() {
 
         <SectionHeader title="Quick actions" />
         <View style={[cardStyle, styles.actions]}>
+          <ShortcutTile icon="cash" tone="amber" label="Counter sale" onPress={() => router.push('/manage/counter')} style={styles.action} />
           <ShortcutTile icon="add-circle" tone="blue" label="Add product" onPress={() => router.push({ pathname: '/manage/product/[id]', params: { id: 'new' } })} style={styles.action} />
           <ShortcutTile icon="share-social" tone="green" label="Share join code" onPress={shareCode} style={styles.action} />
           <ShortcutTile icon="person-add" tone="purple" label="Add agent" onPress={() => router.push('/manage/team')} style={styles.action} />
           <ShortcutTile icon="images" tone="pink" label="Banners" onPress={() => router.push('/manage/banners')} style={styles.action} />
-          <ShortcutTile icon="layers" tone="amber" label="Stock" onPress={() => router.push('/manage/stock')} style={styles.action} />
           <ShortcutTile icon="bar-chart" tone="teal" label="Reports" onPress={() => router.push('/manage/reports')} style={styles.action} />
           <ShortcutTile icon="storefront" tone="grey" label="Shops" badge={d?.shops_waiting} onPress={() => router.push('/manage/shops')} style={styles.action} />
           <ShortcutTile icon="cloud-upload" tone="blue" label="Excel import" onPress={() => router.navigate('/more')} style={styles.action} />

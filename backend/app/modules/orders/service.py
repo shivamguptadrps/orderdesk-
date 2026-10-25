@@ -398,6 +398,92 @@ async def dispatch(db: AsyncSession, order: Order, edits: list[LineQty], user_id
     _event(order, "dispatched", user_id, _join(_change_note(order, "qty_dispatched", before), note))
 
 
+async def counter_sale(db: AsyncSession, *, tenant_id: uuid.UUID, user_id: uuid.UUID, body) -> Order:
+    """Sell over the counter: no shop, no approval. Stock is locked and deducted now (same rules as
+    dispatch: not enough stock -> 409 with the short lines, nothing saved). Caller commits."""
+    wanted: dict[uuid.UUID, tuple[int, Decimal | None]] = {}
+    for line in body.items:  # the same pack twice counts as one line
+        qty, rate = wanted.get(line.unit_id, (0, None))
+        wanted[line.unit_id] = (qty + line.qty, line.rate if line.rate is not None else rate)
+    rows = (
+        await db.execute(
+            select(ProductUnit, Product)
+            .join(Product, Product.id == ProductUnit.product_id)
+            .where(ProductUnit.id.in_(wanted), ProductUnit.tenant_id == tenant_id)
+        )
+    ).all()
+    found = {unit.id: (unit, product) for unit, product in rows}
+    if len(found) != len(wanted):
+        raise HTTPException(404, "A product in this sale was not found. Refresh and try again.")
+
+    need: dict[uuid.UUID, int] = {}
+    for unit_id, (qty, _) in wanted.items():
+        unit, product = found[unit_id]
+        need[product.id] = need.get(product.id, 0) + qty * unit.pieces_per_unit
+    locked = await db.execute(
+        select(Stock.product_id, Stock.qty_pieces)
+        .where(Stock.product_id.in_(need), Stock.tenant_id == tenant_id)
+        .order_by(Stock.product_id)
+        .with_for_update()
+    )
+    available = dict(locked.all())
+    short = []
+    for unit_id, (qty, _) in wanted.items():
+        unit, product = found[unit_id]
+        have = available.get(product.id, 0)
+        if need[product.id] > have:
+            short.append(
+                ShortLine(
+                    item_id=unit_id, product_name=product.name, unit_name=unit.name, qty_wanted=qty,
+                    qty_possible=min(qty, have // unit.pieces_per_unit),
+                    pieces_needed=need[product.id], pieces_available=have,
+                ).model_dump(mode="json")
+            )
+    if short:
+        raise HTTPException(409, {"message": "Not enough stock for some items. Reduce them and try again.", "short": short})
+
+    name = (body.customer_name or "").strip() or "Walk-in customer"
+    phone = (body.customer_phone or "").strip() or None
+    order = Order(
+        tenant_id=tenant_id,
+        order_no=await _take_order_no(db, tenant_id),
+        shop_id=None,
+        placed_by_user_id=user_id,
+        source="counter",
+        status="delivered",
+        note=(body.note or "").strip() or None,
+        items_total=Decimal("0"),
+        payment_status="paid" if body.paid else "unpaid",
+        shop_name=name,
+        shop_address="Counter sale",
+        customer_phone=phone,
+    )
+    order.items = []
+    for n, (unit_id, (qty, rate)) in enumerate(wanted.items()):
+        unit, product = found[unit_id]
+        order.items.append(
+            OrderItem(
+                tenant_id=tenant_id, product_id=product.id, unit_id=unit.id, product_name=product.name,
+                unit_name=unit.name, pieces_per_unit=unit.pieces_per_unit,
+                rate=rate if rate is not None else unit.price,
+                qty_ordered=qty, qty_approved=qty, qty_dispatched=qty, line_total=Decimal("0"), sort_order=n,
+            )
+        )
+    order.events = [
+        OrderEvent(tenant_id=tenant_id, from_status=None, to_status="delivered", user_id=user_id,
+                   note=_join("Counter sale", "paid" if body.paid else "not paid yet"))
+    ]
+    recompute_totals(order)
+    db.add(order)
+    await db.flush()
+    for product_id in sorted(need):
+        await change_stock(
+            db, tenant_id=tenant_id, product_id=product_id, change_pieces=-need[product_id],
+            reason="dispatch", user_id=user_id, note=f"Counter sale #{order.order_no}", ref_order_id=order.id,
+        )
+    return order
+
+
 # ---------- output ----------
 
 
@@ -442,7 +528,7 @@ async def summaries_out(db: AsyncSession, orders: list[Order]) -> list[OrderSumm
 async def order_out(db: AsyncSession, order: Order) -> OrderOut:
     names = await _names(db, {order.placed_by_user_id} | {e.user_id for e in order.events})
     distributor = (await _tenant_names(db, {order.tenant_id}))[order.tenant_id]
-    shop_phone = await db.scalar(
+    shop_phone = order.customer_phone if order.shop_id is None else await db.scalar(
         select(User.phone).join(Shop, Shop.owner_user_id == User.id).where(Shop.id == order.shop_id)
     )
     return OrderOut(

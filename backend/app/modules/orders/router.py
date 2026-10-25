@@ -16,10 +16,11 @@ from app.modules.catalog.queries import catalog_cards, count
 from app.modules.catalog.schemas import CatalogCard
 from app.modules.orders import notify, service
 from app.modules.orders.bill import render_bill
-from app.modules.orders.models import ORDER_STATUSES, Order
+from app.modules.orders.models import ORDER_STATUSES, Order, OrderEvent
 from app.modules.orders.schemas import (
     ApproveIn,
     CartAddIn,
+    CounterSaleIn,
     CartNoteIn,
     CartOut,
     CartQtyIn,
@@ -27,6 +28,7 @@ from app.modules.orders.schemas import (
     NoteIn,
     OrderOut,
     OrderPage,
+    PaymentIn,
     PlaceOrderIn,
     ReasonIn,
     ReorderOut,
@@ -366,6 +368,36 @@ async def cancel_order(
             raise HTTPException(404, "Order not found")
         service.cancel(order, ctx.user.id, body.note, by_shop=True)
     return await _after(db, order, background, ctx.user.id)
+
+
+@router.post(
+    "/t/{tenant_id}/counter-sales",
+    response_model=OrderOut,
+    status_code=201,
+    responses={409: {"description": "Not enough stock; `detail.short` lists the lines to reduce"}},
+)
+async def counter_sale(body: CounterSaleIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
+    """Owner/staff sell at the counter to a walk-in customer: saved as delivered, stock deducted now,
+    rates can differ from the list price. Nobody is notified."""
+    order = await service.counter_sale(db, tenant_id=ctx.tenant_id, user_id=ctx.user.id, body=body)
+    await db.commit()
+    return await service.order_out(db, order)
+
+
+@router.put("/t/{tenant_id}/orders/{order_id}/payment", response_model=OrderOut)
+async def set_payment(
+    order_id: uuid.UUID, body: PaymentIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    """Mark an order paid or unpaid (money is settled outside the app)."""
+    order = await service.lock_order(db, ctx.tenant_id, order_id)
+    if order.payment_status != body.payment_status:
+        order.payment_status = body.payment_status
+        order.events.append(
+            OrderEvent(tenant_id=order.tenant_id, from_status=order.status, to_status=order.status, user_id=ctx.user.id,
+                       note="Marked paid" if body.payment_status == "paid" else "Marked not paid")
+        )
+    await db.commit()
+    return await service.order_out(db, order)
 
 
 # ---------- a shop's orders across all distributors ----------

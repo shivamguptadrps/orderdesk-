@@ -105,10 +105,19 @@ async def join_distributor(
         response.status_code = 200  # already joined; return the existing link
         return await _my_distributor_out(db, link, tenant)
 
-    link = DistributorShop(tenant_id=tenant.id, shop_id=shop.id, status="pending", joined_via_code=code)
+    # The distributor's own owner/staff ordering for their own shop: no approval needed.
+    own_team = await db.scalar(
+        select(TenantMember.id).where(
+            TenantMember.tenant_id == tenant.id, TenantMember.user_id == user.id, TenantMember.role.in_(STAFF_ROLES)
+        )
+    )
+    link = DistributorShop(
+        tenant_id=tenant.id, shop_id=shop.id, status="active" if own_team else "pending", joined_via_code=code
+    )
     db.add(link)
     await db.commit()
-    background.add_task(notify.shop_wants_to_join, tenant.id, shop.id)
+    if not own_team:
+        background.add_task(notify.shop_wants_to_join, tenant.id, shop.id)
     return await _my_distributor_out(db, link, tenant)
 
 

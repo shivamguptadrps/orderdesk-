@@ -104,10 +104,11 @@ export type OrderSummary = {
   tenant_id: string;
   distributor_name: string;
   order_no: number;
-  shop_id: string;
+  shop_id: string | null; // null for counter sales
   shop_name: string;
   status: OrderStatus;
-  source: 'shop' | 'agent' | 'admin';
+  source: 'shop' | 'agent' | 'admin' | 'counter';
+  payment_status?: 'unpaid' | 'partial' | 'paid';
   placed_by_name: string | null;
   item_count: number;
   items_total: number;

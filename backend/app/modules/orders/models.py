@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.db import Base, CreatedAt, Timestamps, UUIDPk, utcnow
 
 ORDER_STATUSES = ("pending", "approved", "dispatched", "delivered", "rejected", "cancelled")
-ORDER_SOURCES = ("shop", "agent", "admin")
+ORDER_SOURCES = ("shop", "agent", "admin", "counter")
 PAYMENT_STATUSES = ("unpaid", "partial", "paid")
 
 
@@ -62,7 +62,8 @@ class Order(UUIDPk, Timestamps, Base):
         CheckConstraint(
             "status IN ('pending', 'approved', 'dispatched', 'delivered', 'rejected', 'cancelled')", name="status"
         ),
-        CheckConstraint("source IN ('shop', 'agent', 'admin')", name="source"),
+        CheckConstraint("source IN ('shop', 'agent', 'admin', 'counter')", name="source"),
+        CheckConstraint("shop_id IS NOT NULL OR source = 'counter'", name="shop_unless_counter"),
         CheckConstraint("payment_status IN ('unpaid', 'partial', 'paid')", name="payment_status"),
         Index("ix_orders_tenant_id_status_created_at", "tenant_id", "status", "created_at"),
         Index("ix_orders_shop_id_created_at", "shop_id", "created_at"),
@@ -70,7 +71,8 @@ class Order(UUIDPk, Timestamps, Base):
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     order_no: Mapped[int]
-    shop_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("shops.id", ondelete="RESTRICT"))
+    # Empty only for counter sales (walk-in customer at the distributor's counter).
+    shop_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("shops.id", ondelete="RESTRICT"))
     placed_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     source: Mapped[str] = mapped_column(String(10))
     status: Mapped[str] = mapped_column(String(12), default="pending", server_default="pending")
@@ -82,6 +84,7 @@ class Order(UUIDPk, Timestamps, Base):
     shop_address: Mapped[str] = mapped_column(Text)
     shop_lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))  # map pin at order time, if the shop saved one
     shop_lng: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
+    customer_phone: Mapped[str | None] = mapped_column(String(20))  # counter sales: walk-in customer's number
 
     items: Mapped[list["OrderItem"]] = relationship(
         order_by="OrderItem.sort_order", cascade="all, delete-orphan", lazy="selectin"

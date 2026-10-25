@@ -11,6 +11,8 @@ module.exports = ({ config }) => {
   return {
     ...config,
     android: { ...config.android, ...(firebase ? { googleServicesFile: firebase } : {}) },
+    // When this app was built, shown at the bottom of More so you can tell which APK a phone has.
+    extra: { ...config.extra, builtAt: new Date().toISOString() },
     plugins: [...(config.plugins || []), ['expo-build-properties', { android: { usesCleartextTraffic: plainHttp } }]],
   };
 };

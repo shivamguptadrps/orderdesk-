@@ -32,6 +32,20 @@ function OrderView({ id, base }: { id: string; base: string }) {
   const [rejecting, setRejecting] = useState(false);
   const [short, setShort] = useState<ShortLine[] | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [paying, setPaying] = useState(false);
+
+  async function setPayment(payment_status: 'paid' | 'unpaid') {
+    setPaying(true);
+    try {
+      await api<Order>(`${base}/orders/${id}/payment`, { method: 'PUT', body: { payment_status } });
+      feedback.tick();
+      await refresh();
+    } catch (err) {
+      Alert.alert("Couldn't save", errorText(err));
+    } finally {
+      setPaying(false);
+    }
+  }
 
   const act = useMutation({
     mutationFn: ({ action, body }: { action: string; body: unknown }) =>
@@ -116,7 +130,13 @@ function OrderView({ id, base }: { id: string; base: string }) {
         <Text style={styles.meta}>{o.shop_address}</Text>
         <Text style={styles.meta}>
           {dateTime(o.created_at)}
-          {o.source === 'agent' ? ` · by agent ${o.placed_by_name}` : o.source === 'admin' ? ` · by ${o.placed_by_name}` : ''}
+          {o.source === 'agent'
+            ? ` · by agent ${o.placed_by_name}`
+            : o.source === 'admin'
+              ? ` · by ${o.placed_by_name}`
+              : o.source === 'counter'
+                ? ` · counter sale by ${o.placed_by_name}`
+                : ''}
         </Text>
         <View style={styles.contactRow}>
           {o.shop_phone && (
@@ -132,7 +152,24 @@ function OrderView({ id, base }: { id: string; base: string }) {
             </Pressable>
           )}
         </View>
-        {o.note ? <Banner kind="info" text={`Shop's note: ${o.note}`} /> : null}
+        {o.note ? <Banner kind="info" text={`${o.source === 'counter' ? 'Note' : "Shop's note"}: ${o.note}`} /> : null}
+        {o.payment_status && (
+          <View style={styles.payRow}>
+            <View style={[styles.payPill, { backgroundColor: o.payment_status === 'paid' ? colors.okSoft : colors.warnSoft }]}>
+              <Ionicons name={o.payment_status === 'paid' ? 'checkmark-circle' : 'time-outline'} size={14} color={o.payment_status === 'paid' ? colors.ok : colors.warn} />
+              <Text style={[styles.payText, { color: o.payment_status === 'paid' ? colors.ok : colors.warn }]}>
+                {o.payment_status === 'paid' ? 'Paid' : 'Not paid'}
+              </Text>
+            </View>
+            <Pressable
+              disabled={paying}
+              onPress={() => setPayment(o.payment_status === 'paid' ? 'unpaid' : 'paid')}
+              hitSlop={8}
+              accessibilityRole="button">
+              <Text style={styles.payAction}>{paying ? 'Saving…' : o.payment_status === 'paid' ? 'Mark not paid' : 'Mark paid'}</Text>
+            </Pressable>
+          </View>
+        )}
       </Card>
 
       {short && (
@@ -264,6 +301,10 @@ function OrderView({ id, base }: { id: string; base: string }) {
 }
 
 const styles = StyleSheet.create({
+  payRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.md },
+  payPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  payText: { fontSize: 13, fontWeight: '800' },
+  payAction: { color: colors.primary, fontWeight: '700', fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: space.sm },
   meta: { fontSize: 13, color: colors.muted, marginTop: 4 },

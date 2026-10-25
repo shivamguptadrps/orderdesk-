@@ -64,7 +64,7 @@ class ReportOut(BaseModel):
     shops_ordering: int
     new_shops: int
     status_counts: dict[str, int]
-    by_source: dict[str, int]  # shop / agent / admin -> orders
+    by_source: dict[str, int]  # shop / agent / admin / counter -> orders
     by_day: list[DayOut]
     top_products: list[ProductRow]
     top_shops: list[ShopRow]
@@ -135,7 +135,7 @@ async def report(
 
     shop_rows = await db.execute(
         select(Order.shop_id, func.max(Order.shop_name), func.count(), func.sum(Order.items_total))
-        .where(*sales)
+        .where(*sales, Order.shop_id.is_not(None))  # counter sales have no shop
         .group_by(Order.shop_id)
         .order_by(func.sum(Order.items_total).desc())
         .limit(10)

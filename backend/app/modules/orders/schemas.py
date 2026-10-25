@@ -2,6 +2,8 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.modules.catalog.schemas import Money
@@ -115,12 +117,32 @@ class OrderEventOut(BaseModel):
     at: datetime
 
 
+class CounterLineIn(BaseModel):
+    unit_id: uuid.UUID
+    qty: int = Field(ge=1, le=100_000)
+    rate: Decimal | None = Field(default=None, ge=0, le=10_000_000, decimal_places=2, description="Price per pack; default = list price")
+
+
+class CounterSaleIn(BaseModel):
+    """A sale at the distributor's counter: done at once, stock goes down now."""
+
+    items: list[CounterLineIn] = Field(min_length=1, max_length=200)
+    customer_name: str | None = Field(default=None, max_length=150)
+    customer_phone: str | None = Field(default=None, max_length=20)
+    paid: bool
+    note: str | None = Field(default=None, max_length=500)
+
+
+class PaymentIn(BaseModel):
+    payment_status: Literal["unpaid", "paid"]
+
+
 class OrderSummaryOut(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
     distributor_name: str
     order_no: int
-    shop_id: uuid.UUID
+    shop_id: uuid.UUID | None  # None for counter sales
     shop_name: str
     status: str
     source: str

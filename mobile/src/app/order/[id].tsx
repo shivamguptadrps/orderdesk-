@@ -149,7 +149,9 @@ function OrderView({
 
       <View style={{ gap: space.md, marginTop: space.xl }}>
         <Button title="Share bill (PDF)" icon="share-outline" onPress={() => shareBill(o)} loading={sharing} />
-        <Button title="Order again" icon="repeat-outline" variant="secondary" onPress={() => reorder.mutate(o.shop_id)} loading={reorder.isPending} />
+        {o.shop_id && (
+          <Button title="Order again" icon="repeat-outline" variant="secondary" onPress={() => reorder.mutate(o.shop_id!)} loading={reorder.isPending} />
+        )}
         {o.status === 'pending' && (
           <Button
             title="Cancel order"
