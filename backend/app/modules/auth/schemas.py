@@ -33,6 +33,10 @@ class RefreshIn(BaseModel):
     refresh_token: str
 
 
+class LogoutIn(RefreshIn):
+    push_token: str | None = Field(default=None, max_length=200, description="This phone's push token, to stop notifications")
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -234,6 +234,12 @@ New backend endpoints: `GET /t/{t}/dashboard`, `GET /t/{t}/join-qr.png`, `POST /
 - Empty states, loading skeletons, error messages, pull-to-refresh.
 - Basic reports for the distributor: today's orders, top products, low stock list.
 
+**As built (25 Oct 2026):** `catalog/related.py` (score, nightly rebuild, pins, cart suggestions), `notifications/` (push tokens,
+Expo sender, `PUSH_MODE=expo|log|off`), `orders/notify.py` + `shops/notify.py` (who gets what), `reports/router.py`.
+Endpoints: `GET /t/{t}/catalog/products/{id}/related`, `GET /t/{t}/cart/suggestions`, `GET|PUT|DELETE /t/{t}/products/{id}/related[/{other}]`,
+`POST /t/{t}/related/rebuild`, `POST /me/push-tokens`, `POST /me/push-tokens/remove`, `GET /t/{t}/reports?days=1|7|30|90`.
+App: `components/shop/*` (ProductTile with ADD/stepper, CartBar, OrderProgress), `ProductStrip`, `lib/push.ts`, `PushHandler`, `manage/reports`.
+
 ---
 
 ## M8 — Deploy and pilot (1 week)

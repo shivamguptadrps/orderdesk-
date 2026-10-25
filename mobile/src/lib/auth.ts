@@ -1,8 +1,10 @@
-import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import { API_URL } from './config';
+import { storage } from './storage';
 
+// Same key as lib/push.ts (not imported, to keep auth free of the notifications module).
+const PUSH_TOKEN_KEY = 'push.token';
 const ACCESS = 'auth.access';
 const REFRESH = 'auth.refresh';
 
@@ -26,26 +28,32 @@ export const useAuth = create<AuthState>()((set, get) => ({
 
   hydrate: async () => {
     const [accessToken, refreshToken] = await Promise.all([
-      SecureStore.getItemAsync(ACCESS),
-      SecureStore.getItemAsync(REFRESH),
+      storage.get(ACCESS),
+      storage.get(REFRESH),
     ]);
     set({ accessToken, refreshToken, status: accessToken ? 'signedIn' : 'signedOut' });
   },
 
   signIn: async (access, refresh) => {
-    await Promise.all([SecureStore.setItemAsync(ACCESS, access), SecureStore.setItemAsync(REFRESH, refresh)]);
+    await Promise.all([storage.set(ACCESS, access), storage.set(REFRESH, refresh)]);
     set({ accessToken: access, refreshToken: refresh, status: 'signedIn' });
   },
 
   signOut: async () => {
     const token = get().refreshToken;
+    // This phone should stop getting this person's notifications.
+    const pushToken = await storage.get(PUSH_TOKEN_KEY).catch(() => null);
     set({ accessToken: null, refreshToken: null, status: 'signedOut' });
-    await Promise.all([SecureStore.deleteItemAsync(ACCESS), SecureStore.deleteItemAsync(REFRESH)]);
+    await Promise.all([
+      storage.remove(ACCESS),
+      storage.remove(REFRESH),
+      storage.remove(PUSH_TOKEN_KEY),
+    ]);
     if (token) {
       fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: token }),
+        body: JSON.stringify({ refresh_token: token, push_token: pushToken }),
       }).catch(() => undefined);
     }
   },

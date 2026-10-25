@@ -1,5 +1,5 @@
-import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
+import { storage } from './storage';
 
 const KEY = 'session.v1';
 
@@ -27,7 +27,7 @@ type SessionState = Saved & {
 const EMPTY: Saved = { tenantId: null, mode: 'shop', agentShop: null };
 
 function save(state: Saved) {
-  SecureStore.setItemAsync(KEY, JSON.stringify(state)).catch(() => undefined);
+  storage.set(KEY, JSON.stringify(state)).catch(() => undefined);
 }
 
 export const useSession = create<SessionState>()((set, get) => {
@@ -41,7 +41,7 @@ export const useSession = create<SessionState>()((set, get) => {
     loaded: false,
     load: async () => {
       try {
-        const raw = await SecureStore.getItemAsync(KEY);
+        const raw = await storage.get(KEY);
         set({ ...(raw ? (JSON.parse(raw) as Saved) : EMPTY), loaded: true });
       } catch {
         set({ ...EMPTY, loaded: true });

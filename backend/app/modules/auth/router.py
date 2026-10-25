@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import security
@@ -10,7 +10,9 @@ from app.core.db import get_db, utcnow
 from app.core.deps import get_current_user
 from app.core.otp_sender import send_otp
 from app.modules.auth.models import OtpRequest, RefreshToken, User
+from app.modules.notifications.models import PushToken
 from app.modules.auth.schemas import (
+    LogoutIn,
     MembershipOut,
     MeOut,
     MeUpdateIn,
@@ -119,13 +121,20 @@ async def refresh_tokens(body: RefreshIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/logout", status_code=204)
-async def logout(body: RefreshIn, db: AsyncSession = Depends(get_db)):
+async def logout(body: LogoutIn, db: AsyncSession = Depends(get_db)):
+    """End this session. Also stops push notifications to this phone when its push token is sent."""
     token = await db.scalar(
         select(RefreshToken).where(RefreshToken.token_hash == security.hash_secret(f"refresh:{body.refresh_token}"))
     )
-    if token is not None and token.revoked_at is None:
+    if token is None:
+        return
+    if token.revoked_at is None:
         token.revoked_at = utcnow()
-        await db.commit()
+    if body.push_token:
+        await db.execute(
+            delete(PushToken).where(PushToken.token == body.push_token, PushToken.user_id == token.user_id)
+        )
+    await db.commit()
 
 
 async def _me(db: AsyncSession, user: User) -> MeOut:

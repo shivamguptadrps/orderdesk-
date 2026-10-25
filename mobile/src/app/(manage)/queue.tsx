@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Empty, ErrorView, Loading, StatusBadge } from '@/components/ui';
+import { Empty, ErrorView, SkeletonList, StatusBadge } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { dateTime, inr } from '@/lib/format';
 import { useManage } from '@/lib/manage';
@@ -45,7 +45,7 @@ export default function QueueScreen() {
         ))}
       </ScrollView>
       {orders.isLoading ? (
-        <Loading />
+        <SkeletonList />
       ) : orders.isError ? (
         <ErrorView message={errorText(orders.error)} onRetry={() => orders.refetch()} />
       ) : (

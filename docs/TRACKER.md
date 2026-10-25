@@ -23,14 +23,14 @@
 | M4 Agents | Done | 24 Oct 2026 | 24 Oct 2026 |
 | M5 Mobile app: shop owner | Built, phone check pending | 24 Oct 2026 | |
 | M6 Distributor tools | Built, phone check pending | 24 Oct 2026 | |
-| M7 Related products, notifications, polish | Not started | | |
+| M7 Related products, notifications, polish | Done (push needs `eas init` to reach phones) | 24 Oct 2026 | 25 Oct 2026 |
 | M8 Deploy and pilot | Not started | | |
 
 ## Next up
 
-1. Test M6 on the phone as the owner (9000000001): approve/dispatch the waiting orders, add a product with a photo, share the join QR.
-2. Fix what feels wrong in M5/M6 after phone testing.
-3. M7: related products, push notifications, reports polish. Then M8: deploy + pilot.
+1. Phone test of the new shop UI (M7 polish) and distributor tools; fix what feels wrong.
+2. Run `npx eas init` in `mobile/` (links the app to an Expo project id) so iPhone/Android can get push tokens; then test notifications.
+3. M8: deploy + pilot (EAS build APK needs the same project id).
 4. Later: uncle's real account + real products; Meta WhatsApp number for real OTPs.
 
 ## Blockers
@@ -136,11 +136,11 @@
 
 | ID | Task | Status | Notes |
 | --- | --- | --- | --- |
-| M7-01 | product_relations table + nightly scoring job | [ ] | |
-| M7-02 | Related products on product page and cart | [ ] | |
-| M7-03 | Expo push: placed / approved / dispatched | [ ] | |
-| M7-04 | Empty, loading and error states across app | [ ] | |
-| M7-05 | Distributor mini reports: today's orders, top products, low stock | [ ] | |
+| M7-01 | product_relations table + nightly scoring job | [x] | `catalog/related.py`; nightly 02:30 IST in the API process, `scripts/rebuild_related.py`, `POST /t/{t}/related/rebuild`; pins both ways |
+| M7-02 | Related products on product page and cart | [x] | "Customers also buy" on product page, "You may also need" in cart, "Buy again" on home; editor shows links + pin/unpin |
+| M7-03 | Expo push: placed / approved / dispatched | [~] | Backend + app done (also rejected/delivered/cancelled, shop join/approved); tap opens the order. Phones get tokens only after `eas init` adds the project id |
+| M7-04 | Empty, loading and error states across app | [x] | Skeleton loaders, pull-to-refresh; plus shop UI redesign (ADD/stepper cards, cart bar, MRP % off, bill summary, order tracker), checked with phone-size screenshots |
+| M7-05 | Distributor mini reports: today's orders, top products, low stock | [x] | Reports screen: today/7/30/90 days, sales per day chart, status counts, top products/shops/agents |
 
 ## M8 — Deploy and pilot
 
@@ -171,4 +171,5 @@
 | 24 Oct 2026 | Phone shows API OK (iPhone, Expo Go). Added start-dev.cmd. M0 closed | M4 agents |
 | 24 Oct 2026 | M4 done: team management, agent shops, ordering for a shop (agent/admin), shop sign-up by agent with optional auto-approve, settings. 111 tests pass; live agent flow checked. Plan updated with status and as-built notes | M5 screens |
 | 24 Oct 2026 | M5 app built: login, shop setup, distributors (code/QR), catalog + search, product page, cart, orders, bill share, reorder/cancel, profile, agent mode. tsc + lint + expo-doctor clean, iOS bundle builds | Phone test, then M6 |
+| 25 Oct 2026 | M7 done: related products (nightly + pins), push notifications (needs eas init on phones), reports, skeletons; shop UI redesigned to shopping-app patterns and verified with screenshots. 137 backend tests; tsc/lint/doctor clean. Fixed: Expo on Node 21 crashed (now Node 22 via nvm) | Phone test, eas init, M8 |
 | 24 Oct 2026 | M6 built: distributor mode in the app (dashboard, queue, product editor with photos/stock, low stock, shops, team, settings/QR) + /import web page. 119 backend tests; tsc/lint/doctor clean. Fixed: old backend workers kept serving stale code (start-dev.cmd now stops them) | Phone test M6, then M7 |

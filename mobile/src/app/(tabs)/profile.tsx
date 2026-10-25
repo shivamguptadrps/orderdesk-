@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { NotificationStatus } from '@/components/NotificationStatus';
 import { Button, Card, Loading, SectionTitle, StatusBadge } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useWorkspace } from '@/lib/data';
@@ -40,10 +41,17 @@ export default function ProfileScreen() {
             void ws.me.refetch();
             void ws.distributors.refetch();
           }} />}>
-      <Card>
-        <Text style={styles.name}>{me.name ?? 'No name yet'}</Text>
-        <Text style={styles.muted}>{me.phone}</Text>
-      </Card>
+      <View style={styles.hero}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{(me.shop?.shop_name ?? me.name ?? 'M').slice(0, 1).toUpperCase()}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name} numberOfLines={1}>
+            {me.shop?.shop_name ?? me.name ?? 'My account'}
+          </Text>
+          <Text style={styles.muted}>{[me.name ?? me.shop?.owner_name, me.phone].filter(Boolean).join(' · ')}</Text>
+        </View>
+      </View>
 
       {me.shop ? (
         <>
@@ -146,6 +154,8 @@ export default function ProfileScreen() {
       )}
 
       <SectionTitle>App</SectionTitle>
+      <NotificationStatus />
+      <View style={{ height: space.md }} />
       <Button title="Check server connection" variant="secondary" icon="pulse-outline" onPress={() => router.push('/health')} />
       <Button title="Log out" variant="danger" icon="log-out-outline" onPress={logout} style={{ marginTop: space.md }} />
     </ScrollView>
@@ -153,6 +163,18 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: space.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
   name: { fontSize: 20, fontWeight: '800', color: colors.text },
   muted: { fontSize: 13, color: colors.muted, marginTop: 2 },
   itemTitle: { fontSize: 15, fontWeight: '700', color: colors.text },

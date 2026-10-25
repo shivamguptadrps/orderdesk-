@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     media_dir: str = "uploads"  # product photos (local disk in dev)
     media_url_prefix: str = "/media"
 
+    # Push notifications: "expo" sends through Expo's push service, "log" only prints, "off" does nothing.
+    push_mode: str = "expo"
+    expo_push_url: str = "https://exp.host/--/api/v2/push/send"
+    expo_access_token: str = ""  # only if "enhanced push security" is turned on in the Expo account
+
+    # Nightly rebuild of related products (India time). Off in tests.
+    related_job_enabled: bool = True
+    related_job_hour_ist: int = 2
+
     whatsapp_token: str = ""
     whatsapp_phone_number_id: str = ""
     whatsapp_otp_template: str = ""

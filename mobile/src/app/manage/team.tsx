@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Banner, Button, Card, ErrorView, Field, Loading, SectionTitle } from '@/components/ui';
+import { Banner, Button, Card, ErrorView, Field, SectionTitle, SkeletonList } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useManage, useMembers, useRefreshManage } from '@/lib/manage';
 import { colors, radius, space } from '@/lib/theme';
@@ -35,7 +35,7 @@ export default function TeamScreen() {
     onError: (err) => Alert.alert("Couldn't remove", errorText(err)),
   });
 
-  if (members.isLoading) return <Loading />;
+  if (members.isLoading) return <SkeletonList count={4} />;
   if (members.isError) return <ErrorView message={errorText(members.error)} onRetry={() => members.refetch()} />;
   const myId = ws.me.data?.id;
 

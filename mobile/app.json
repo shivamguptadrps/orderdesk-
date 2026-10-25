@@ -40,6 +40,12 @@
         {
           "cameraPermission": "OrderDesk uses the camera to scan your distributor's QR code."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#1F6FEB"
+        }
       ]
     ],
     "experiments": {

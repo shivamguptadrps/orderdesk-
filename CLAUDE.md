@@ -87,4 +87,11 @@ first for his uncle, an FMCG distributor in India; other distributors will be on
   `netstat -ano | findstr :8000` for more than one listener.
 - Search: exact word matches first; fuzzy `word_similarity` only when nothing matches exactly.
 - Windows tooling note: curl from Git Bash garbles Hindi text; test Hindi with Python/httpx.
-- Next: see `docs/TRACKER.md` "Next up" (git commit, Node 22 LTS, M0-06 mobile).
+- M7 done: related products in `catalog/related.py` (nightly job started in `main.py` lifespan), push in
+  `app/modules/notifications` + `orders/notify.py` / `shops/notify.py` (background tasks, own DB session; tests read
+  `notifications.service.sent_log` with PUSH_MODE=log), reports in `app/modules/reports`. App push needs an Expo project id
+  (`npx eas init` in mobile/) before phones get tokens.
+- Shop UI: `mobile/src/components/shop/` (ProductTile + AddControl, CartBar, OrderProgress), cart changes via
+  `lib/cartActions.ts`. Web preview (`localhost:8081`) works for screenshots; storage goes through `lib/storage.ts`.
+- Expo needs Node >= 22.13 (nvm-windows: `nvm use 22.23.4`). After installing a native package, restart Expo with `-c`.
+- Next: see `docs/TRACKER.md` "Next up".

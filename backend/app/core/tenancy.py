@@ -63,6 +63,31 @@ async def get_tenant_context(
     raise not_found
 
 
+async def resolve_shop(
+    db: AsyncSession, ctx: TenantContext, shop_id: uuid.UUID | None, required: bool = True
+) -> uuid.UUID | None:
+    """Which shop a request is for. A shop is always itself. An agent may pick one of its assigned
+    active shops, staff any active shop. Anything else is 404, so other tenants' shops stay invisible."""
+    if ctx.role == "shop":
+        if shop_id is not None and shop_id != ctx.shop_id:
+            raise HTTPException(404, "Shop not found")
+        return ctx.shop_id
+    if shop_id is None:
+        if required:
+            raise HTTPException(422, "shop_id is required: which shop are you ordering for?")
+        return None
+    link = await db.scalar(
+        select(DistributorShop).where(
+            DistributorShop.tenant_id == ctx.tenant_id,
+            DistributorShop.shop_id == shop_id,
+            DistributorShop.status == "active",
+        )
+    )
+    if link is None or (ctx.role == "agent" and link.agent_user_id != ctx.user.id):
+        raise HTTPException(404, "Shop not found")
+    return shop_id
+
+
 def require_roles(*roles: str):
     async def dependency(ctx: TenantContext = Depends(get_tenant_context)) -> TenantContext:
         if ctx.role not in roles:

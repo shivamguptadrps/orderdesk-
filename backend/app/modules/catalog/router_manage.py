@@ -9,9 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
-from app.core.media import MAX_UPLOAD_BYTES, delete_product_image, save_product_image
+from app.core.media import MAX_UPLOAD_BYTES, delete_product_image, save_product_image, thumb_url
 from app.core.tenancy import STAFF_ROLES, TenantContext, require_roles
-from app.modules.catalog import excel
+from app.modules.catalog import excel, related
 from app.modules.catalog.models import MAX_CATEGORY_DEPTH, AttributeDefinition, Category, Product, ProductUnit
 from app.modules.catalog.queries import (
     apply_search,
@@ -527,3 +527,82 @@ async def import_products(
         errors=[ImportRowError(**e) for e in result.errors],
         saved=not dry_run and not result.errors,
     )
+
+
+# ---------- related products ----------
+
+
+class RelatedOut(BaseModel):
+    product_id: uuid.UUID
+    name: str
+    brand: str | None
+    image: str | None
+    status: str
+    score: float
+    bought_together: int  # orders that had both (last 180 days)
+    pinned: bool
+
+
+class RebuildOut(BaseModel):
+    links: int
+
+
+@router.get("/t/{tenant_id}/products/{product_id}/related", response_model=list[RelatedOut])
+async def list_related(product_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
+    """What shops see under this product, with why: score, orders together, pinned."""
+    await get_product_or_404(db, ctx.tenant_id, product_id)
+    links = (await related.links_for(db, ctx.tenant_id, {product_id})).get(product_id, [])
+    products = {
+        p.id: p
+        for p in await db.scalars(
+            select(Product).where(Product.tenant_id == ctx.tenant_id, Product.id.in_([x.related_id for x in links]))
+        )
+    }
+    return [
+        RelatedOut(
+            product_id=p.id,
+            name=p.name,
+            brand=p.brand,
+            image=thumb_url(p.images[0]) if p.images else None,
+            status=p.status,
+            score=link.score,
+            bought_together=link.bought_together,
+            pinned=link.pinned,
+        )
+        for link in links
+        if (p := products.get(link.related_id))
+    ]
+
+
+async def _pin(db: AsyncSession, ctx: TenantContext, product_id: uuid.UUID, other_id: uuid.UUID, pinned: bool):
+    if product_id == other_id:
+        raise HTTPException(422, "A product can't be linked to itself")
+    await get_product_or_404(db, ctx.tenant_id, product_id)
+    await get_product_or_404(db, ctx.tenant_id, other_id)
+    await related.set_pin(db, ctx.tenant_id, product_id, other_id, pinned)
+    await db.commit()
+    return await list_related(product_id, ctx, db)
+
+
+@router.put("/t/{tenant_id}/products/{product_id}/related/{other_id}", response_model=list[RelatedOut])
+async def pin_related(
+    product_id: uuid.UUID, other_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    """Link two products by hand (both ways), e.g. tea with sugar. Pinned links are always shown."""
+    return await _pin(db, ctx, product_id, other_id, True)
+
+
+@router.delete("/t/{tenant_id}/products/{product_id}/related/{other_id}", response_model=list[RelatedOut])
+async def unpin_related(
+    product_id: uuid.UUID, other_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    """Remove a hand-made link (both ways). Automatic links come back if the data supports them."""
+    return await _pin(db, ctx, product_id, other_id, False)
+
+
+@router.post("/t/{tenant_id}/related/rebuild", response_model=RebuildOut)
+async def rebuild_related(ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
+    """Recompute related products now (it also runs every night)."""
+    links = await related.rebuild(db, ctx.tenant_id)
+    await db.commit()
+    return RebuildOut(links=links)

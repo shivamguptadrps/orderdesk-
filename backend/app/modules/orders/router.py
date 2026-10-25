@@ -3,16 +3,18 @@
 import uuid
 from dataclasses import dataclass
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.deps import get_current_user
-from app.core.tenancy import STAFF_ROLES, TenantContext, get_tenant_context, require_roles
+from app.core.tenancy import STAFF_ROLES, TenantContext, get_tenant_context, require_roles, resolve_shop
 from app.modules.auth.models import User
-from app.modules.catalog.queries import count
-from app.modules.orders import service
+from app.modules.catalog import related
+from app.modules.catalog.queries import catalog_cards, count
+from app.modules.catalog.schemas import CatalogCard
+from app.modules.orders import notify, service
 from app.modules.orders.bill import render_bill
 from app.modules.orders.models import ORDER_STATUSES, Order
 from app.modules.orders.schemas import (
@@ -59,22 +61,9 @@ async def get_buyer(
     db: AsyncSession = Depends(get_db),
 ) -> Buyer:
     """A shop orders for itself. An agent orders for one of its assigned active shops; staff for any active shop."""
-    if ctx.role == "shop":
-        if shop_id is not None and shop_id != ctx.shop_id:
-            raise HTTPException(404, "Shop not found")
-        return Buyer(ctx, ctx.shop_id, "shop")
-    if shop_id is None:
-        raise HTTPException(422, "shop_id is required: which shop are you ordering for?")
-    link = await db.scalar(
-        select(DistributorShop).where(
-            DistributorShop.tenant_id == ctx.tenant_id,
-            DistributorShop.shop_id == shop_id,
-            DistributorShop.status == "active",
-        )
-    )
-    if link is None or (ctx.role == "agent" and link.agent_user_id != ctx.user.id):
-        raise HTTPException(404, "Shop not found")
-    return Buyer(ctx, shop_id, "agent" if ctx.role == "agent" else "admin")
+    resolved = await resolve_shop(db, ctx, shop_id)
+    source = "shop" if ctx.role == "shop" else "agent" if ctx.role == "agent" else "admin"
+    return Buyer(ctx, resolved, source)
 
 
 def _agent_shop_ids(ctx: TenantContext):
@@ -95,6 +84,17 @@ async def _cart_response(db: AsyncSession, b: Buyer) -> CartOut:
 async def get_cart(b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
     """The cart for this distributor. Lines with a `problem` must be fixed before ordering."""
     return await _cart_response(db, b)
+
+
+@router.get("/t/{tenant_id}/cart/suggestions", response_model=list[CatalogCard])
+async def cart_suggestions(
+    limit: int = Query(default=8, ge=1, le=20), b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)
+):
+    """'You may also need': in-stock products that go with the cart, then this shop's usual items."""
+    cart = await service.find_cart(db, b.tenant_id, b.shop_id, b.user.id)
+    in_cart = {i.product_id for i in cart.items} if cart else set()
+    products = await related.cart_suggestions(db, b.tenant_id, in_cart, b.shop_id, limit)
+    return await catalog_cards(db, products)
 
 
 @router.post("/t/{tenant_id}/cart/items", response_model=CartOut)
@@ -156,7 +156,9 @@ async def clear_cart(b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(g
 
 
 @router.post("/t/{tenant_id}/orders", response_model=OrderOut, status_code=201)
-async def place_order(body: PlaceOrderIn, b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)):
+async def place_order(
+    body: PlaceOrderIn, background: BackgroundTasks, b: Buyer = Depends(get_buyer), db: AsyncSession = Depends(get_db)
+):
     """Place an order from the cart. It waits for the distributor's approval.
 
     Agents/staff pass `shop_id`; the order is tagged as placed by them.
@@ -165,6 +167,7 @@ async def place_order(body: PlaceOrderIn, b: Buyer = Depends(get_buyer), db: Asy
     shop = await db.get(Shop, b.shop_id)
     order = await service.place_order(db, cart=cart, shop=shop, user_id=b.user.id, source=b.source, note=body.note)
     await db.commit()
+    background.add_task(notify.order_changed, order.id, "placed", b.user.id)
     return await service.order_out(db, order)
 
 
@@ -296,28 +299,30 @@ async def reorder(order_id: uuid.UUID, b: Buyer = Depends(get_buyer), db: AsyncS
 # ---------- distributor actions ----------
 
 
-async def _after(db: AsyncSession, order: Order) -> OrderOut:
+async def _after(db: AsyncSession, order: Order, background: BackgroundTasks, user_id: uuid.UUID) -> OrderOut:
+    """Save, tell the people who need to know (after the response), and return the order."""
     await db.commit()
+    background.add_task(notify.order_changed, order.id, order.status, user_id)
     return await service.order_out(db, order)
 
 
 @router.post("/t/{tenant_id}/orders/{order_id}/approve", response_model=OrderOut)
 async def approve_order(
-    order_id: uuid.UUID, body: ApproveIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+    order_id: uuid.UUID, background: BackgroundTasks, body: ApproveIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
 ):
     """Approve, optionally changing quantities (qty 0 removes a line). Stock is not touched yet."""
     order = await service.lock_order(db, ctx.tenant_id, order_id)
     service.approve(order, body.items, ctx.user.id, body.note)
-    return await _after(db, order)
+    return await _after(db, order, background, ctx.user.id)
 
 
 @router.post("/t/{tenant_id}/orders/{order_id}/reject", response_model=OrderOut)
 async def reject_order(
-    order_id: uuid.UUID, body: ReasonIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+    order_id: uuid.UUID, background: BackgroundTasks, body: ReasonIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
 ):
     order = await service.lock_order(db, ctx.tenant_id, order_id)
     service.reject(order, ctx.user.id, body.reason.strip())
-    return await _after(db, order)
+    return await _after(db, order, background, ctx.user.id)
 
 
 @router.post(
@@ -326,26 +331,26 @@ async def reject_order(
     responses={409: {"description": "Not enough stock; `detail.short` lists the lines to reduce"}},
 )
 async def dispatch_order(
-    order_id: uuid.UUID, body: DispatchIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+    order_id: uuid.UUID, background: BackgroundTasks, body: DispatchIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
 ):
     """Dispatch: stock is deducted now, in one transaction. You may dispatch less than approved."""
     order = await service.lock_order(db, ctx.tenant_id, order_id)
     await service.dispatch(db, order, body.items, ctx.user.id, body.note)
-    return await _after(db, order)
+    return await _after(db, order, background, ctx.user.id)
 
 
 @router.post("/t/{tenant_id}/orders/{order_id}/deliver", response_model=OrderOut)
 async def deliver_order(
-    order_id: uuid.UUID, body: NoteIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+    order_id: uuid.UUID, background: BackgroundTasks, body: NoteIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
 ):
     order = await service.lock_order(db, ctx.tenant_id, order_id)
     service.deliver(order, ctx.user.id, body.note)
-    return await _after(db, order)
+    return await _after(db, order, background, ctx.user.id)
 
 
 @router.post("/t/{tenant_id}/orders/{order_id}/cancel", response_model=OrderOut)
 async def cancel_order(
-    order_id: uuid.UUID, body: NoteIn, ctx: TenantContext = Depends(get_tenant_context), db: AsyncSession = Depends(get_db)
+    order_id: uuid.UUID, background: BackgroundTasks, body: NoteIn, ctx: TenantContext = Depends(get_tenant_context), db: AsyncSession = Depends(get_db)
 ):
     """A shop (or the agent who placed it) can cancel while pending. Staff can cancel pending or approved orders."""
     if ctx.role == "shop":
@@ -359,7 +364,7 @@ async def cancel_order(
         if order.placed_by_user_id != ctx.user.id:
             raise HTTPException(404, "Order not found")
         service.cancel(order, ctx.user.id, body.note, by_shop=True)
-    return await _after(db, order)
+    return await _after(db, order, background, ctx.user.id)
 
 
 # ---------- a shop's orders across all distributors ----------

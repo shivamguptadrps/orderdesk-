@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.media import thumb_url
 from app.modules.catalog.models import Product, ProductUnit
-from app.modules.catalog.schemas import CatalogUnitOut, ProductOut, UnitOut
+from app.modules.catalog.schemas import CatalogCard, CatalogUnitOut, ProductOut, UnitOut
+from app.modules.inventory.service import stock_map
 
 # word_similarity() score above which a fuzzy match counts (0..1). Catches typos like "chini" for "cheeni".
 SEARCH_SIMILARITY = 0.4
@@ -58,6 +59,27 @@ def default_unit(product: Product) -> ProductUnit | None:
     if not product.units:
         return None
     return next((u for u in product.units if u.is_default), product.units[0])
+
+
+async def catalog_cards(db: AsyncSession, products: list[Product]) -> list[CatalogCard]:
+    """Product cards as a shop sees them in lists. Products must have at least one pack size."""
+    stock = await stock_map(db, [p.id for p in products])
+    cards = []
+    for p in products:
+        pieces = stock.get(p.id, 0)
+        cards.append(
+            CatalogCard(
+                id=p.id,
+                name=p.name,
+                brand=p.brand,
+                category_id=p.category_id,
+                image=thumb_url(p.images[0]) if p.images else None,
+                mrp=p.mrp,
+                default_unit=catalog_unit_out(default_unit(p), pieces),
+                in_stock=pieces > 0,
+            )
+        )
+    return cards
 
 
 def product_out(product: Product, stock_pieces: int) -> ProductOut:

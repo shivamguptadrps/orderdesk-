@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from app.core.deps import get_current_user
 from app.core.tenancy import STAFF_ROLES, TenantContext, require_roles
 from app.modules.auth.models import User
 from app.modules.orders.models import Order
+from app.modules.shops import notify
 from app.modules.shops.models import LINK_STATUSES, DistributorShop, Shop
 from app.modules.shops.schemas import (
     AssignAgentIn,
@@ -84,6 +85,7 @@ def _my_distributor_out(link: DistributorShop, tenant: Tenant) -> MyDistributorO
 async def join_distributor(
     body: JoinDistributorIn,
     response: Response,
+    background: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -104,6 +106,7 @@ async def join_distributor(
     link = DistributorShop(tenant_id=tenant.id, shop_id=shop.id, status="pending", joined_via_code=code)
     db.add(link)
     await db.commit()
+    background.add_task(notify.shop_wants_to_join, tenant.id, shop.id)
     return _my_distributor_out(link, tenant)
 
 
@@ -196,21 +199,27 @@ def _check_link_status(status: str | None) -> None:
         raise HTTPException(422, f"status must be one of {', '.join(LINK_STATUSES)}")
 
 
-async def _set_status(db: AsyncSession, ctx: TenantContext, shop_id: uuid.UUID, status: str) -> TenantShopOut:
+async def _set_status(db: AsyncSession, ctx: TenantContext, shop_id: uuid.UUID, status: str) -> tuple[TenantShopOut, str]:
+    """Returns the shop and its status before the change."""
     link, *_ = await _get_tenant_shop(db, ctx.tenant_id, shop_id)
-    link.status = status
+    before, link.status = link.status, status
     await db.commit()
-    return await _fresh(db, ctx.tenant_id, shop_id)
+    return await _fresh(db, ctx.tenant_id, shop_id), before
 
 
 @router.post("/t/{tenant_id}/shops/{shop_id}/approve", response_model=TenantShopOut)
-async def approve_shop(shop_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
-    return await _set_status(db, ctx, shop_id, "active")
+async def approve_shop(
+    shop_id: uuid.UUID, background: BackgroundTasks, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    out, before = await _set_status(db, ctx, shop_id, "active")
+    if before == "pending":
+        background.add_task(notify.shop_approved, ctx.tenant_id, shop_id, ctx.user.id)
+    return out
 
 
 @router.post("/t/{tenant_id}/shops/{shop_id}/block", response_model=TenantShopOut)
 async def block_shop(shop_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
-    return await _set_status(db, ctx, shop_id, "blocked")
+    return (await _set_status(db, ctx, shop_id, "blocked"))[0]
 
 
 @router.put("/t/{tenant_id}/shops/{shop_id}/agent", response_model=TenantShopOut)

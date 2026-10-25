@@ -1,3 +1,6 @@
+import asyncio
+import contextlib
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI
@@ -12,10 +15,13 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.media import media_root
 from app.modules.auth.router import router as auth_router
+from app.modules.catalog import related
 from app.modules.catalog.router_catalog import router as catalog_router
 from app.modules.catalog.router_manage import router as catalog_manage_router
 from app.modules.inventory.router import router as inventory_router
+from app.modules.notifications.router import router as notifications_router
 from app.modules.orders.router import router as orders_router
+from app.modules.reports.router import router as reports_router
 from app.modules.shops.router import router as shops_router
 from app.modules.tenants.router import router as tenants_router
 
@@ -28,7 +34,22 @@ if settings.app_env == "prod":
     if settings.otp_mode == "log":
         raise RuntimeError("OTP_MODE=log prints codes to the log; use 'whatsapp' in production")
 
-app = FastAPI(title="OrderDesk API", version="0.1.0")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Background jobs that live as long as the API process (one API container in production)."""
+    job = None
+    if settings.related_job_enabled and settings.app_env != "test":
+        job = asyncio.create_task(related.nightly_loop(settings.related_job_hour_ist))
+    yield
+    if job:
+        job.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await job
+
+
+app = FastAPI(title="OrderDesk API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,6 +65,8 @@ app.include_router(catalog_manage_router)
 app.include_router(catalog_router)
 app.include_router(inventory_router)
 app.include_router(orders_router)
+app.include_router(notifications_router)
+app.include_router(reports_router)
 app.mount(settings.media_url_prefix, StaticFiles(directory=media_root()), name="media")
 
 

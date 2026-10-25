@@ -1,10 +1,12 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
     Computed,
+    DateTime,
     ForeignKey,
     Index,
     Numeric,
@@ -12,12 +14,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     false,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.db import Base, Timestamps, UUIDPk
+from app.core.db import Base, Timestamps, UUIDPk, utcnow
 
 ATTRIBUTE_TYPES = ("text", "number", "select", "boolean")
 PRODUCT_STATUSES = ("active", "hidden")
@@ -117,3 +120,26 @@ class ProductUnit(UUIDPk, Timestamps, Base):
     max_qty: Mapped[int | None]
     is_default: Mapped[bool] = mapped_column(default=False, server_default=false())
     sort_order: Mapped[int] = mapped_column(default=0, server_default="0")
+
+
+class ProductRelation(Base):
+    """'Customers also buy' links, rebuilt nightly by catalog/related.py.
+
+    score = 0.4 bought together + 0.25 same category + 0.15 matching features + 0.1 pinned by the distributor.
+    (+0.1 'this shop bought it before' is added when a shop asks, so it is not stored.)
+    Pinned rows are set by the distributor and survive rebuilds.
+    """
+
+    __tablename__ = "product_relations"
+    __table_args__ = (
+        CheckConstraint("product_id <> related_id", name="not_self"),
+        Index("ix_product_relations_tenant_id_product_id_score", "tenant_id", "product_id", "score"),
+    )
+
+    product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), primary_key=True)
+    related_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), primary_key=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    score: Mapped[Decimal] = mapped_column(Numeric(5, 4), default=0, server_default="0")
+    bought_together: Mapped[int] = mapped_column(default=0, server_default="0")  # orders with both
+    pinned: Mapped[bool] = mapped_column(default=False, server_default=false())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())

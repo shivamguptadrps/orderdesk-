@@ -8,14 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.media import thumb_url
-from app.core.tenancy import TenantContext, get_tenant_context
+from app.core.tenancy import TenantContext, get_tenant_context, resolve_shop
+from app.modules.catalog import related
 from app.modules.catalog.models import Product, ProductUnit
 from app.modules.catalog.queries import (
     apply_attribute_filters,
     apply_search,
+    catalog_cards,
     catalog_unit_out,
     count,
-    default_unit,
     get_product_or_404,
     parse_filters,
 )
@@ -117,23 +118,7 @@ async def catalog_products(
 
     total = await count(db, query)
     products = (await db.scalars(query.limit(limit).offset(offset))).all()
-    stock = await stock_map(db, [p.id for p in products])
-    items = []
-    for p in products:
-        pieces = stock.get(p.id, 0)
-        items.append(
-            CatalogCard(
-                id=p.id,
-                name=p.name,
-                brand=p.brand,
-                category_id=p.category_id,
-                image=thumb_url(p.images[0]) if p.images else None,
-                mrp=p.mrp,
-                default_unit=catalog_unit_out(default_unit(p), pieces),
-                in_stock=pieces > 0,
-            )
-        )
-    return CatalogPage(items=items, total=total)
+    return CatalogPage(items=await catalog_cards(db, products), total=total)
 
 
 @router.get("/t/{tenant_id}/catalog/products/{product_id}", response_model=CatalogDetail)
@@ -165,3 +150,20 @@ async def catalog_product(
         units=[catalog_unit_out(u, pieces) for u in product.units],
         in_stock=pieces > 0,
     )
+
+
+@router.get("/t/{tenant_id}/catalog/products/{product_id}/related", response_model=list[CatalogCard])
+async def catalog_related(
+    product_id: uuid.UUID,
+    shop_id: uuid.UUID | None = Query(default=None, description="Agents/staff: rank for this shop"),
+    limit: int = Query(default=8, ge=1, le=20),
+    ctx: TenantContext = Depends(get_tenant_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """'Customers also buy': in-stock products related to this one, best first."""
+    product = await get_product_or_404(db, ctx.tenant_id, product_id)
+    if product.status != "active" or not product.units:
+        raise HTTPException(404, "Product not found")
+    shop = await resolve_shop(db, ctx, shop_id, required=False)
+    products = await related.related_products(db, ctx.tenant_id, product_id, shop, limit)
+    return await catalog_cards(db, products)

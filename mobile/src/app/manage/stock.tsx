@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { Empty, ErrorView, Loading } from '@/components/ui';
+import { Empty, ErrorView, SkeletonList } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { stockText, useManage } from '@/lib/manage';
 import { colors, radius, space } from '@/lib/theme';
@@ -21,7 +21,7 @@ export default function LowStockScreen() {
     enabled: !!tenantId,
   });
 
-  if (list.isLoading) return <Loading />;
+  if (list.isLoading) return <SkeletonList />;
   if (list.isError) return <ErrorView message={errorText(list.error)} onRetry={() => list.refetch()} />;
 
   return (

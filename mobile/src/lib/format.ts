@@ -54,3 +54,17 @@ export function packLabel(name: string, pieces: number): string {
   if (pieces === 1 || name.includes(String(pieces))) return name;
   return `${name} (${pieces} pcs)`;
 }
+
+/** MRP for a whole pack and the % saved against it (MRP is per piece). Null when there's no saving. */
+export function saving(mrpPerPiece: number | null, price: number, pieces: number): { mrp: number; percent: number } | null {
+  if (!mrpPerPiece) return null;
+  const mrp = mrpPerPiece * pieces;
+  const percent = Math.round(((mrp - price) / mrp) * 100);
+  return percent >= 1 ? { mrp, percent } : null;
+}
+
+/** 'Box (60)' -> 'Box of 60', 'Piece' -> 'Piece'. */
+export function packName(name: string, pieces: number): string {
+  const base = name.replace(/\s*\(\d+\)\s*$/, '');
+  return pieces > 1 ? `${base} of ${pieces}` : base;
+}

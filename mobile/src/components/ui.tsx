@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   StyleSheet,
   Text,
@@ -90,6 +91,55 @@ export function Loading({ text }: { text?: string }) {
     <View style={styles.center}>
       <ActivityIndicator size="large" color={colors.primary} />
       {text ? <Text style={[styles.muted, { marginTop: space.sm }]}>{text}</Text> : null}
+    </View>
+  );
+}
+
+/** Grey placeholder that gently pulses while content loads. */
+export function Skeleton({ width, height, style }: { width?: number | `${number}%`; height: number; style?: ViewStyle }) {
+  const [opacity] = useState(() => new Animated.Value(0.5));
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.5, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return <Animated.View style={[{ width: width ?? '100%', height, borderRadius: radius.sm, backgroundColor: colors.border, opacity }, style]} />;
+}
+
+/** Placeholder rows (lists) or tiles (product grid) shown on first load. */
+export function SkeletonList({ variant = 'row', count = 6 }: { variant?: 'row' | 'grid'; count?: number }) {
+  const items = Array.from({ length: count }, (_, i) => i);
+  if (variant === 'grid') {
+    return (
+      <View style={styles.skeletonGrid} accessibilityLabel="Loading">
+        {items.map((i) => (
+          <View key={i} style={styles.skeletonTile}>
+            <Skeleton height={140} style={{ borderRadius: 0 }} />
+            <View style={{ padding: space.sm, gap: 6 }}>
+              <Skeleton height={14} />
+              <Skeleton height={14} width="60%" />
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }
+  return (
+    <View style={{ padding: space.lg, gap: space.md }} accessibilityLabel="Loading">
+      {items.map((i) => (
+        <View key={i} style={[styles.card, { flexDirection: 'row', gap: space.md, padding: space.md }]}>
+          <Skeleton width={48} height={48} />
+          <View style={{ flex: 1, gap: 8, justifyContent: 'center' }}>
+            <Skeleton height={14} width="70%" />
+            <Skeleton height={12} width="45%" />
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
@@ -244,6 +294,16 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: space.xl,
     marginBottom: space.sm,
+  },
+  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: space.lg, gap: space.md },
+  skeletonTile: {
+    width: '47%',
+    flexGrow: 1,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl },
   centerText: { textAlign: 'center' },

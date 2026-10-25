@@ -4,7 +4,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Banner, Button, Card, ErrorView, Loading, SectionTitle, StatusBadge } from '@/components/ui';
+import { OrderProgress } from '@/components/shop/OrderProgress';
+import { Banner, Button, Card, ErrorView, Loading, SectionTitle, SkeletonList, StatusBadge } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useRefreshOrders, useWorkspace } from '@/lib/data';
 import { downloadAndShare } from '@/lib/files';
@@ -78,7 +79,7 @@ function OrderView({
     }
   }
 
-  if (order.isLoading) return <Loading />;
+  if (order.isLoading) return <SkeletonList count={4} />;
   if (order.isError) return <ErrorView message={errorText(order.error)} onRetry={() => order.refetch()} />;
   const o = order.data!;
   const changed = o.items.some((i) => i.qty !== i.qty_ordered);
@@ -104,6 +105,7 @@ function OrderView({
         <Text style={[styles.meta, { marginTop: space.sm }]}>
           {o.shop_name} · {o.shop_address}
         </Text>
+        <OrderProgress status={o.status} />
       </Card>
 
       <SectionTitle>Items</SectionTitle>
@@ -119,7 +121,7 @@ function OrderView({
       {changed && <Text style={styles.small}>Quantities were changed by the distributor. The total uses the final quantities.</Text>}
       {o.note ? <Text style={[styles.small, { marginTop: space.sm }]}>Note: {o.note}</Text> : null}
 
-      <SectionTitle>Progress</SectionTitle>
+      <SectionTitle>History</SectionTitle>
       <Card>
         {o.events.map((e, i) => (
           <View key={`${e.to_status}-${e.at}`} style={styles.event}>

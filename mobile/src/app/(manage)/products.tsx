@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Button, Empty, ErrorView, Loading } from '@/components/ui';
+import { Button, Empty, ErrorView, SkeletonList } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { inr, mediaUrl, packLabel } from '@/lib/format';
 import { stockText, useManage } from '@/lib/manage';
@@ -61,7 +61,7 @@ export default function ProductsScreen() {
         <Text style={styles.count}>{products.data ? `${products.data.total} products` : ''}</Text>
       </View>
       {products.isLoading ? (
-        <Loading />
+        <SkeletonList />
       ) : products.isError ? (
         <ErrorView message={errorText(products.error)} onRetry={() => products.refetch()} />
       ) : (

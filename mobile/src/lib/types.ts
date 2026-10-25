@@ -218,3 +218,31 @@ export type LedgerEntry = {
   note: string | null;
   created_at: string;
 };
+
+export type RelatedLink = {
+  product_id: string;
+  name: string;
+  brand: string | null;
+  image: string | null;
+  status: 'active' | 'hidden';
+  score: number;
+  bought_together: number;
+  pinned: boolean;
+};
+
+export type Report = {
+  days: number;
+  start: string;
+  end: string;
+  orders: number;
+  value: number;
+  average_order: number;
+  shops_ordering: number;
+  new_shops: number;
+  status_counts: Partial<Record<OrderStatus, number>>;
+  by_source: Partial<Record<'shop' | 'agent' | 'admin', number>>;
+  by_day: { date: string; orders: number; value: number }[];
+  top_products: { product_id: string | null; name: string; pieces: number; value: number; orders: number }[];
+  top_shops: { shop_id: string; name: string; orders: number; value: number }[];
+  top_agents: { user_id: string; name: string; orders: number; value: number }[];
+};

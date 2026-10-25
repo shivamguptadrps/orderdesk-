@@ -12,6 +12,8 @@ from pathlib import Path
 os.environ["APP_ENV"] = "test"
 os.environ["JWT_SECRET"] = "test-secret-not-for-production-0123456789"
 os.environ["OTP_MODE"] = "log"
+os.environ["PUSH_MODE"] = "log"
+os.environ["RELATED_JOB_ENABLED"] = "false"
 os.environ["MEDIA_DIR"] = tempfile.mkdtemp(prefix="orderdesk-media-")
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://orderdesk:orderdesk_dev@localhost:5432/orderdesk_test"

@@ -61,6 +61,15 @@ export default function DashboardScreen() {
           onPress={() => router.push('/manage/stock')}
         />
       </View>
+
+      <Pressable onPress={() => router.push('/manage/reports')} style={({ pressed }) => [styles.reports, pressed && { opacity: 0.85 }]}>
+        <Ionicons name="bar-chart-outline" size={22} color={colors.primary} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.reportsTitle}>Reports</Text>
+          <Text style={styles.reportsSub}>Sales per day, top products, top shops</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.faint} />
+      </Pressable>
     </ScrollView>
   );
 }
@@ -114,5 +123,18 @@ const styles = StyleSheet.create({
   },
   tileValue: { fontSize: 28, fontWeight: '800', marginTop: space.sm },
   tileLabel: { fontSize: 14, color: colors.muted, fontWeight: '600' },
+  reports: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    marginTop: space.xl,
+    padding: space.lg,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  reportsTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  reportsSub: { fontSize: 13, color: colors.muted, marginTop: 2 },
   tileSub: { fontSize: 12, marginTop: 2, fontWeight: '600' },
 });

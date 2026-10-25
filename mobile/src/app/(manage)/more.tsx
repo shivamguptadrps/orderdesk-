@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
+import { NotificationStatus } from '@/components/NotificationStatus';
 import { Card, SectionTitle } from '@/components/ui';
 import { API_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -37,7 +38,8 @@ export default function MoreScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: 48 }}>
       <Card style={{ paddingVertical: space.xs }}>
-        <Item icon="storefront-outline" label="Shops" badge={dash.data?.shops_waiting} sub="Approve requests, assign agents" onPress={() => router.push('/manage/shops')} />
+        <Item icon="bar-chart-outline" label="Reports" sub="Sales, top products and shops" onPress={() => router.push('/manage/reports')} />
+        <Item icon="storefront-outline" label="Shops" badge={dash.data?.shops_waiting} sub="Approve requests, assign agents" onPress={() => router.push('/manage/shops')} border />
         <Item icon="alert-circle-outline" label="Low stock" badge={dash.data?.low_stock} sub="Products running out" onPress={() => router.push('/manage/stock')} border />
         <Item icon="people-outline" label="Team" sub="Agents and staff" onPress={() => router.push('/manage/team')} border />
         <Item icon="qr-code-outline" label="Join code & settings" sub={isOwner ? 'QR to share, name, colour, logo' : 'QR to share'} onPress={() => router.push('/manage/settings')} border />
@@ -84,6 +86,8 @@ export default function MoreScreen() {
       )}
 
       <SectionTitle>App</SectionTitle>
+      <NotificationStatus />
+      <View style={{ height: space.md }} />
       <Card style={{ paddingVertical: space.xs }}>
         <Item icon="pulse-outline" label="Server connection" onPress={() => router.push('/health')} />
         <Item icon="log-out-outline" label="Log out" danger onPress={logout} border />

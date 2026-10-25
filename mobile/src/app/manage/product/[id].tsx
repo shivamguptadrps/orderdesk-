@@ -6,6 +6,7 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, 
 import { CategoryPicker } from '@/components/manage/CategoryPicker';
 import { FeaturesEditor, featuresForApi, featuresFromApi, type FeatureValues } from '@/components/manage/FeaturesEditor';
 import { PhotosSection } from '@/components/manage/PhotosSection';
+import { RelatedSection } from '@/components/manage/RelatedSection';
 import { StockSection } from '@/components/manage/StockSection';
 import { emptyUnit, UnitForm, unitForApi, type UnitDraft } from '@/components/manage/UnitForm';
 import { Banner, Button, Card, ErrorView, Field, Loading, SectionTitle } from '@/components/ui';
@@ -260,6 +261,10 @@ function Editor({
             <SectionTitle>Stock</SectionTitle>
             <Card>
               <StockSection product={product} base={base} onChanged={reload} />
+            </Card>
+            <SectionTitle>Customers also buy</SectionTitle>
+            <Card>
+              <RelatedSection product={product} base={base} />
             </Card>
             <Button title="Delete product" variant="danger" onPress={deleteProduct} style={{ marginTop: space.xl }} />
           </>

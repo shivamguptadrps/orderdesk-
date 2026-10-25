@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { PushHandler } from '@/components/PushHandler';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useSession } from '@/lib/session';
@@ -41,6 +42,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <StatusBar style="dark" />
       <AuthWatcher />
+      <PushHandler />
       <Stack
         screenOptions={{
           headerTintColor: colors.text,
@@ -66,6 +68,7 @@ export default function RootLayout() {
         <Stack.Screen name="manage/team" options={{ title: 'Team' }} />
         <Stack.Screen name="manage/settings" options={{ title: 'Join code & settings' }} />
         <Stack.Screen name="manage/stock" options={{ title: 'Low stock' }} />
+        <Stack.Screen name="manage/reports" options={{ title: 'Reports' }} />
         <Stack.Screen name="health" options={{ title: 'Server connection' }} />
       </Stack>
     </QueryClientProvider>

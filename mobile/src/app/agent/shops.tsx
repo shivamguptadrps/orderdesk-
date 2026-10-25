@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Button, Empty, ErrorView, Loading, StatusBadge } from '@/components/ui';
+import { Button, Empty, ErrorView, Loading, SkeletonList, StatusBadge } from '@/components/ui';
 import { errorText } from '@/lib/api';
 import { useAgentShops, useWorkspace } from '@/lib/data';
 import { shortDate } from '@/lib/format';
@@ -47,7 +47,7 @@ export default function AgentShopsScreen() {
         />
       </View>
       {shops.isLoading ? (
-        <Loading />
+        <SkeletonList />
       ) : shops.isError ? (
         <ErrorView message={errorText(shops.error)} onRetry={() => shops.refetch()} />
       ) : (

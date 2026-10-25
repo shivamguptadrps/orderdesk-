@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Alert, FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Empty, ErrorView, Loading, StatusBadge } from '@/components/ui';
+import { Button, Empty, ErrorView, Loading, SkeletonList, StatusBadge } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { shortDate } from '@/lib/format';
 import { useManage, useMembers, useRefreshManage } from '@/lib/manage';
@@ -53,7 +53,7 @@ export default function ShopsScreen() {
         ))}
       </ScrollView>
       {shops.isLoading ? (
-        <Loading />
+        <SkeletonList />
       ) : shops.isError ? (
         <ErrorView message={errorText(shops.error)} onRetry={() => shops.refetch()} />
       ) : (
