@@ -11,6 +11,7 @@ import { dateTime, inr, packLabel, STATUS_LABEL } from '@/lib/format';
 import { useManage, useRefreshManage } from '@/lib/manage';
 import { colors, radius, space } from '@/lib/theme';
 import type { Order, OrderItem } from '@/lib/types';
+import { mapsUrl } from '@/components/LocationField';
 
 type ShortLine = { item_id: string; product_name: string; unit_name: string; qty_wanted: number; qty_possible: number };
 
@@ -100,12 +101,20 @@ function OrderView({ id, base }: { id: string; base: string }) {
           {dateTime(o.created_at)}
           {o.source === 'agent' ? ` · by agent ${o.placed_by_name}` : o.source === 'admin' ? ` · by ${o.placed_by_name}` : ''}
         </Text>
-        {o.shop_phone && (
-          <Pressable onPress={() => Linking.openURL(`tel:${o.shop_phone}`)} style={styles.call}>
-            <Ionicons name="call-outline" size={16} color={colors.primary} />
-            <Text style={styles.callText}>Call {o.shop_phone}</Text>
-          </Pressable>
-        )}
+        <View style={styles.contactRow}>
+          {o.shop_phone && (
+            <Pressable onPress={() => Linking.openURL(`tel:${o.shop_phone}`)} style={styles.call}>
+              <Ionicons name="call-outline" size={16} color={colors.primary} />
+              <Text style={styles.callText}>Call {o.shop_phone}</Text>
+            </Pressable>
+          )}
+          {o.shop_lat != null && o.shop_lng != null && (
+            <Pressable onPress={() => Linking.openURL(mapsUrl(o.shop_lat!, o.shop_lng!))} style={styles.call}>
+              <Ionicons name="navigate-outline" size={16} color={colors.primary} />
+              <Text style={styles.callText}>Open in Maps</Text>
+            </Pressable>
+          )}
+        </View>
         {o.note ? <Banner kind="info" text={`Shop's note: ${o.note}`} /> : null}
       </Card>
 
@@ -241,6 +250,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: space.sm },
   meta: { fontSize: 13, color: colors.muted, marginTop: 4 },
+  contactRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg },
   call: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space.md, marginBottom: space.sm },
   callText: { color: colors.primary, fontWeight: '700' },
   small: { fontSize: 12, color: colors.muted, marginTop: 2 },

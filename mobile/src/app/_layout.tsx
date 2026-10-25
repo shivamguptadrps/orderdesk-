@@ -56,6 +56,7 @@ export default function RootLayout() {
         <Stack.Screen name="setup-shop" options={{ title: 'Shop profile' }} />
         <Stack.Screen name="product/[id]" options={{ title: '' }} />
         <Stack.Screen name="category/[id]" options={{ title: '' }} />
+        <Stack.Screen name="checkout" options={{ title: 'Review order' }} />
         <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
         <Stack.Screen name="add-distributor" options={{ title: 'Add distributor' }} />
         <Stack.Screen name="scan" options={{ title: 'Scan QR code' }} />

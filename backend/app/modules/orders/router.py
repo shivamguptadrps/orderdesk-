@@ -166,7 +166,9 @@ async def place_order(
     """
     cart = await service.lock_cart(db, b.tenant_id, b.shop_id, b.user.id)
     shop = await db.get(Shop, b.shop_id)
-    order = await service.place_order(db, cart=cart, shop=shop, user_id=b.user.id, source=b.source, note=body.note)
+    order = await service.place_order(
+        db, cart=cart, shop=shop, user_id=b.user.id, source=b.source, note=body.note, expected_total=body.expected_total
+    )
     await db.commit()
     background.add_task(notify.order_changed, order.id, "placed", b.user.id)
     return await service.order_out(db, order)

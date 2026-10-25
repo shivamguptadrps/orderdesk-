@@ -5,8 +5,8 @@ export type Shop = {
   address: string;
   city: string;
   pincode: string;
-  lat: number | null;
-  lng: number | null;
+  lat: number | string | null; // the API sends exact decimals as text
+  lng: number | string | null;
   photo_url: string | null;
 };
 
@@ -118,6 +118,8 @@ export type OrderEvent = { from_status: string | null; to_status: OrderStatus; b
 export type Order = OrderSummary & {
   note: string | null;
   shop_address: string;
+  shop_lat: number | null;
+  shop_lng: number | null;
   shop_phone: string | null;
   items: OrderItem[];
   events: OrderEvent[];
@@ -206,7 +208,7 @@ export type Attribute = {
 
 export type FlatCategory = { id: string; parent_id: string | null; name: string; attributes: Attribute[] };
 
-export type TenantShop = AgentShop & { agent_user_id: string | null; joined_at: string };
+export type TenantShop = AgentShop & { agent_user_id: string | null; joined_at: string; lat: number | null; lng: number | null };
 
 export type Member = { user_id: string; phone: string; name: string | null; role: 'owner' | 'staff' | 'agent'; assigned_shops: number };
 

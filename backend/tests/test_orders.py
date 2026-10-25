@@ -410,3 +410,30 @@ async def test_other_distributor_cannot_touch_orders(client, o):
     # A's order is untouched
     again = (await client.get(f"/t/{a.id}/orders/{oid}", headers=o["owner"])).json()
     assert again["status"] == "pending" and len(again["events"]) == 1
+
+
+# ---------- confirm step and shop location ----------
+
+
+async def test_place_order_with_confirmed_total(client, o):
+    await add(client, o, o["bag"], 2)  # 2 x 1290 = 2580
+    # buyer saw a different total (price changed meanwhile): refused, cart kept
+    res = await client.post(f"{o['t']}/orders", json={"expected_total": 2000}, headers=o["shop"])
+    assert res.status_code == 409
+    assert res.json()["detail"]["code"] == "total_changed" and res.json()["detail"]["total"] == 2580.0
+    assert (await client.get(f"{o['t']}/cart", headers=o["shop"])).json()["item_count"] == 1
+    res = await client.post(f"{o['t']}/orders", json={"expected_total": 2580}, headers=o["shop"])
+    assert res.status_code == 201, res.text
+
+
+async def test_order_keeps_shop_map_pin(client, o):
+    res = await client.put("/shops/me", json={"lat": 26.449923, "lng": 80.331871}, headers=o["shop"])
+    assert res.status_code == 200, res.text
+    order = await placed_order(client, o)
+    assert order["shop_lat"] == 26.449923 and order["shop_lng"] == 80.331871
+    shops = (await client.get(f"{o['t']}/shops", headers=o["owner"])).json()
+    assert shops[0]["lat"] == 26.449923
+    # moving the pin later doesn't change old orders
+    await client.put("/shops/me", json={"lat": 25.0, "lng": 80.0}, headers=o["shop"])
+    again = (await client.get(f"{o['t']}/orders/{order['id']}", headers=o["owner"])).json()
+    assert again["shop_lat"] == 26.449923

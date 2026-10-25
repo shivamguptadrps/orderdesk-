@@ -9,6 +9,7 @@ import { shortDate } from '@/lib/format';
 import { useManage, useMembers, useRefreshManage } from '@/lib/manage';
 import { colors, radius, space } from '@/lib/theme';
 import type { TenantShop } from '@/lib/types';
+import { mapsUrl } from '@/components/LocationField';
 
 const FILTERS = [
   { key: 'pending', label: 'Waiting' },
@@ -78,10 +79,18 @@ export default function ShopsScreen() {
               <Text style={styles.meta}>
                 {item.owner_name} · {item.address}, {item.city} - {item.pincode}
               </Text>
-              <Pressable onPress={() => Linking.openURL(`tel:${item.owner_phone}`)} style={styles.inline}>
-                <Ionicons name="call-outline" size={15} color={colors.primary} />
-                <Text style={styles.link}>{item.owner_phone}</Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row', columnGap: space.lg, flexWrap: 'wrap' }}>
+                <Pressable onPress={() => Linking.openURL(`tel:${item.owner_phone}`)} style={styles.inline}>
+                  <Ionicons name="call-outline" size={15} color={colors.primary} />
+                  <Text style={styles.link}>{item.owner_phone}</Text>
+                </Pressable>
+                {item.lat != null && item.lng != null && (
+                  <Pressable onPress={() => Linking.openURL(mapsUrl(item.lat!, item.lng!))} style={styles.inline}>
+                    <Ionicons name="navigate-outline" size={15} color={colors.primary} />
+                    <Text style={styles.link}>Map</Text>
+                  </Pressable>
+                )}
+              </View>
               <Text style={styles.meta}>
                 {item.agent_name ? `Agent: ${item.agent_name}` : 'No agent'}
                 {item.added_by_agent ? ' · signed up by agent' : ''}

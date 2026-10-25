@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text } from 'react-native';
 
+import { type FoundAddress, LocationField, type Pin } from '@/components/LocationField';
 import { Banner, Button, Field, Loading } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useWorkspace } from '@/lib/data';
@@ -15,10 +16,18 @@ export default function AddShopScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const [form, setForm] = useState({ owner_phone: '', shop_name: '', owner_name: '', address: '', city: '', pincode: '' });
+  const [pin, setPin] = useState<Pin | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<AgentShop | null>(null);
   const set = (key: keyof typeof form) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const fillEmpty = (found: FoundAddress) =>
+    setForm((f) => ({
+      ...f,
+      address: f.address.trim() ? f.address : (found.address ?? f.address),
+      city: f.city.trim() ? f.city : (found.city ?? f.city),
+      pincode: f.pincode.trim() ? f.pincode : (found.pincode?.replace(/\D/g, '').slice(0, 6) ?? f.pincode),
+    }));
 
   if (ws.loading) return <Loading />;
   const tenantId = ws.current?.mode === 'agent' ? ws.current.tenantId : ws.agentOptions[0]?.tenantId;
@@ -31,7 +40,7 @@ export default function AddShopScreen() {
     setBusy(true);
     setError(null);
     try {
-      const body = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v.trim()]));
+      const body = { ...Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v.trim()])), ...(pin ?? {}) };
       const shop = await api<AgentShop>(`/t/${tenantId}/agent/shops`, { method: 'POST', body });
       await qc.invalidateQueries({ queryKey: ['agentShops'] });
       setDone(shop);
@@ -74,6 +83,7 @@ export default function AddShopScreen() {
         />
         <Field label="Shop name" value={form.shop_name} onChangeText={set('shop_name')} />
         <Field label="Owner name" value={form.owner_name} onChangeText={set('owner_name')} />
+        <LocationField value={pin} onChange={setPin} onAddress={fillEmpty} />
         <Field label="Address" value={form.address} onChangeText={set('address')} multiline />
         <Field label="City" value={form.city} onChangeText={set('city')} />
         <Field

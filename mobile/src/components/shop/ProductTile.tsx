@@ -1,6 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { QtyPrompt } from '@/components/shop/QtyPrompt';
 
 import { firstQty } from '@/components/ui';
 import { inr, mediaUrl, packName, saving } from '@/lib/format';
@@ -9,7 +12,7 @@ import type { CartLine, CatalogCard, Unit } from '@/lib/types';
 
 /**
  * The add button every shopping app has: "ADD", then − qty + once it's in the cart.
- * Uses the pack's minimum and step quantities.
+ * Tap the number to type any quantity. Uses the pack's minimum, step and maximum.
  */
 export function AddControl({
   unit,
@@ -18,16 +21,20 @@ export function AddControl({
   disabled,
   onAdd,
   onQty,
+  name,
   size = 'md',
 }: {
-  unit: Pick<Unit, 'min_qty' | 'step_qty' | 'max_qty'>;
+  unit: Pick<Unit, 'min_qty' | 'step_qty' | 'max_qty'> & { name?: string; pieces_per_unit?: number };
   line?: CartLine;
   busy: boolean;
   disabled?: boolean;
   onAdd: () => void;
   onQty: (qty: number) => void;
+  /** Product name, shown when typing a quantity. */
+  name?: string;
   size?: 'md' | 'lg';
 }) {
+  const [typing, setTyping] = useState(false);
   const h = size === 'lg' ? 48 : 36;
   if (!line) {
     const first = firstQty(unit.min_qty, unit.step_qty);
@@ -54,10 +61,28 @@ export function AddControl({
       <Pressable accessibilityLabel="Less" hitSlop={6} disabled={busy} onPress={() => onQty(line.qty - line.step_qty)} style={styles.stepBtn}>
         <Ionicons name={line.qty - line.step_qty < firstQty(line.min_qty, line.step_qty) ? 'trash-outline' : 'remove'} size={16} color="#FFFFFF" />
       </Pressable>
-      {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={[styles.stepQty, size === 'lg' && { fontSize: 17 }]}>{line.qty}</Text>}
+      {busy ? (
+        <ActivityIndicator size="small" color="#FFFFFF" />
+      ) : (
+        <Pressable onPress={() => setTyping(true)} hitSlop={4} accessibilityLabel={`Quantity ${line.qty}, tap to type`} style={styles.qtyTap}>
+          <Text style={[styles.stepQty, size === 'lg' && { fontSize: 17 }]}>{line.qty}</Text>
+        </Pressable>
+      )}
       <Pressable accessibilityLabel="More" hitSlop={6} disabled={busy || !canUp} onPress={() => onQty(line.qty + line.step_qty)} style={[styles.stepBtn, !canUp && { opacity: 0.4 }]}>
         <Ionicons name="add" size={16} color="#FFFFFF" />
       </Pressable>
+      <QtyPrompt
+        visible={typing}
+        title={name ?? line.product_name}
+        unitLabel={packName(line.unit_name, line.pieces_per_unit)}
+        initial={line.qty}
+        rules={{ min_qty: line.min_qty, step_qty: line.step_qty, max_qty: unit.max_qty }}
+        onClose={() => setTyping(false)}
+        onSave={(qty) => {
+          setTyping(false);
+          if (qty !== line.qty) onQty(qty);
+        }}
+      />
     </View>
   );
 }
@@ -212,5 +237,6 @@ const styles = StyleSheet.create({
   stepBtn: { width: 28, height: '100%', alignItems: 'center', justifyContent: 'center' },
   addLg: { backgroundColor: colors.primary },
   addTextLg: { color: '#FFFFFF', fontSize: 16 },
+  qtyTap: { minWidth: 30, alignSelf: 'stretch', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.5)', marginVertical: 6 },
   stepQty: { color: '#FFFFFF', fontWeight: '800', fontSize: 14, minWidth: 22, textAlign: 'center' },
 });

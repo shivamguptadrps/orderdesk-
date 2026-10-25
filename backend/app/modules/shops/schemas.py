@@ -67,6 +67,8 @@ class TenantShopOut(BaseModel):
     address: str
     city: str
     pincode: str
+    lat: float | None = None
+    lng: float | None = None
     status: str
     agent_user_id: uuid.UUID | None
     agent_name: str | None = None

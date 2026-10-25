@@ -46,6 +46,12 @@
         {
           "color": "#1F6FEB"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "OrderDesk saves your shop's location so the distributor's delivery person can find it."
+        }
       ]
     ],
     "experiments": {

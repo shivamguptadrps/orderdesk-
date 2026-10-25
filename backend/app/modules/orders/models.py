@@ -80,6 +80,8 @@ class Order(UUIDPk, Timestamps, Base):
     # Copied at order time so old bills never change
     shop_name: Mapped[str] = mapped_column(String(150))
     shop_address: Mapped[str] = mapped_column(Text)
+    shop_lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))  # map pin at order time, if the shop saved one
+    shop_lng: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
 
     items: Mapped[list["OrderItem"]] = relationship(
         order_by="OrderItem.sort_order", cascade="all, delete-orphan", lazy="selectin"

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -58,6 +59,9 @@ class ReorderOut(BaseModel):
 
 class PlaceOrderIn(BaseModel):
     note: str | None = Field(default=None, max_length=500)
+    expected_total: Decimal | None = Field(
+        default=None, ge=0, description="The total the buyer confirmed. If the cart now costs something else, the order is refused (409)."
+    )
 
 
 class LineQty(BaseModel):
@@ -130,6 +134,8 @@ class OrderSummaryOut(BaseModel):
 class OrderOut(OrderSummaryOut):
     note: str | None
     shop_address: str
+    shop_lat: float | None = None
+    shop_lng: float | None = None
     shop_phone: str | None
     items: list[OrderItemOut]
     events: list[OrderEventOut]

@@ -203,7 +203,14 @@ def recompute_totals(order: Order) -> None:
 
 
 async def place_order(
-    db: AsyncSession, *, cart: Cart, shop: Shop, user_id: uuid.UUID, source: str, note: str | None
+    db: AsyncSession,
+    *,
+    cart: Cart,
+    shop: Shop,
+    user_id: uuid.UUID,
+    source: str,
+    note: str | None,
+    expected_total: Decimal | None = None,
 ) -> Order:
     """Turn a locked cart into a pending order. Caller commits."""
     if not cart.items:
@@ -211,6 +218,14 @@ async def place_order(
     lines = await evaluate_cart(db, cart)
     if any(line.problem for line in lines):
         raise HTTPException(409, "Some items in your cart need attention. Please check your cart.")
+    if expected_total is not None:
+        total = sum((line.unit.price * line.item.qty for line in lines), Decimal("0"))
+        if total != expected_total:
+            raise HTTPException(
+                409,
+                {"message": "Prices or quantities changed since you checked. Please review your order again.",
+                 "code": "total_changed", "total": float(total)},
+            )
 
     order = Order(
         tenant_id=cart.tenant_id,
@@ -223,6 +238,8 @@ async def place_order(
         items_total=Decimal("0"),
         shop_name=shop.shop_name,
         shop_address=f"{shop.address}, {shop.city} - {shop.pincode}",
+        shop_lat=shop.lat,
+        shop_lng=shop.lng,
     )
     order.items = [
         OrderItem(
@@ -431,6 +448,8 @@ async def order_out(db: AsyncSession, order: Order) -> OrderOut:
         **_summary(order, distributor, names),
         note=order.note,
         shop_address=order.shop_address,
+        shop_lat=float(order.shop_lat) if order.shop_lat is not None else None,
+        shop_lng=float(order.shop_lng) if order.shop_lng is not None else None,
         shop_phone=shop_phone,
         items=[
             OrderItemOut(

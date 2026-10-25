@@ -10,11 +10,11 @@ import { AddControl } from '@/components/shop/ProductTile';
 import { Banner, Button, Empty, ErrorView, Loading, SkeletonList } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useCartActions } from '@/lib/cartActions';
-import { cartKey, useCart, useRefreshOrders, useWorkspace, type Workspace } from '@/lib/data';
+import { cartKey, useCart, useWorkspace, type Workspace } from '@/lib/data';
 import { inr, mediaUrl, packName } from '@/lib/format';
 import { shopParam } from '@/lib/session';
 import { colors, radius, space } from '@/lib/theme';
-import type { Cart, CartLine, Order, Shop } from '@/lib/types';
+import type { Cart, CartLine, Shop } from '@/lib/types';
 
 export default function CartScreen() {
   const ws = useWorkspace();
@@ -37,27 +37,22 @@ export default function CartScreen() {
 function CartView({ ws, shop }: { ws: Workspace; shop: Shop | null }) {
   const router = useRouter();
   const qc = useQueryClient();
-  const refreshOrders = useRefreshOrders();
   const cart = useCart(ws);
   const actions = useCartActions(ws);
   const base = `/t/${ws.tenantId}`;
   const query = shopParam(ws.mode, ws.agentShop);
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
 
-  const place = useMutation({
+  // Save the note, then show the review screen. Nothing is ordered until the buyer confirms there.
+  const review = useMutation({
     mutationFn: async () => {
-      if (noteDraft !== null) await api<Cart>(`${base}/cart/note`, { method: 'PUT', body: { note: noteDraft }, query });
-      return api<Order>(`${base}/orders`, { method: 'POST', body: {}, query });
+      if (noteDraft !== null && noteDraft !== (cart.data?.note ?? '')) {
+        const updated = await api<Cart>(`${base}/cart/note`, { method: 'PUT', body: { note: noteDraft }, query });
+        qc.setQueryData(cartKey(ws), updated);
+      }
     },
-    onSuccess: async (order) => {
-      setNoteDraft(null);
-      await refreshOrders();
-      router.push({ pathname: '/order/[id]', params: { id: order.id, tenant: order.tenant_id, placed: '1' } });
-    },
-    onError: async (err) => {
-      await qc.invalidateQueries({ queryKey: cartKey(ws) });
-      Alert.alert("Couldn't place order", errorText(err));
-    },
+    onSuccess: () => router.push('/checkout'),
+    onError: (err) => Alert.alert("Couldn't save the note", errorText(err)),
   });
 
   if (cart.isLoading) return <SkeletonList count={3} />;
@@ -178,10 +173,10 @@ function CartView({ ws, shop }: { ws: Workspace; shop: Shop | null }) {
           <Text style={styles.total}>{inr(data.total)}</Text>
         </View>
         <Button
-          title="Place order"
-          icon="checkmark-circle-outline"
-          onPress={() => place.mutate()}
-          loading={place.isPending}
+          title="Review order"
+          icon="arrow-forward-circle-outline"
+          onPress={() => review.mutate()}
+          loading={review.isPending}
           disabled={!data.can_place_order || actions.busy !== undefined}
           style={{ minWidth: 180 }}
         />
