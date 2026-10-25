@@ -39,7 +39,7 @@ export default function BannersScreen() {
     if (picked.canceled) return;
     const a = picked.assets[0];
     act.mutate(async () => {
-      const created = await uploadImage<Banner>(`${base}/banners/photo`, { uri: a.uri, name: a.fileName, mimeType: a.mimeType });
+      const created = await uploadImage<Banner>(`${base}/banners/photo`, a);
       setEditing(created);
     });
   }
@@ -200,7 +200,7 @@ function Editor({
       const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsEditing: true, aspect: [2, 1] });
       if (picked.canceled) return;
       const a = picked.assets[0];
-      const updated = await uploadImage<Banner>(`${base}/banners/${banner.id}/image`, { uri: a.uri, name: a.fileName, mimeType: a.mimeType });
+      const updated = await uploadImage<Banner>(`${base}/banners/${banner.id}/image`, a);
       setImage(updated.image_url);
     });
 

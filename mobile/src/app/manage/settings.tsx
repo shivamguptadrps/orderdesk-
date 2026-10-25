@@ -51,7 +51,7 @@ function Settings({ t, base, isOwner }: { t: TenantInfo; base: string; isOwner: 
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: true, aspect: [1, 1] });
     if (result.canceled || !result.assets?.length) return;
     const a = result.assets[0];
-    await run('logo', () => uploadImage(`${base}/logo`, { uri: a.uri, name: a.fileName, mimeType: a.mimeType }), 'Logo updated');
+    await run('logo', () => uploadImage(`${base}/logo`, a), 'Logo updated');
   }
 
   return (

@@ -30,7 +30,7 @@ export function PhotosSection({ product, base, onChanged }: { product: ManagePro
       if (result.canceled || !result.assets?.length) return;
       setBusy(true);
       const asset = result.assets[0];
-      await uploadImage(url, { uri: asset.uri, name: asset.fileName, mimeType: asset.mimeType });
+      await uploadImage(url, asset);
       onChanged();
     } catch (err) {
       Alert.alert("Couldn't add photo", errorText(err));

@@ -1,3 +1,7 @@
+import { File, UploadType } from 'expo-file-system';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { Platform } from 'react-native';
+
 import { useAuth } from './auth';
 import { API_URL } from './config';
 
@@ -89,30 +93,85 @@ export function errorText(err: unknown): string {
   return String(err);
 }
 
-/** Upload one photo (multipart). Used for product photos and the distributor logo. */
-export async function uploadImage<T>(path: string, file: { uri: string; name?: string | null; mimeType?: string | null }): Promise<T> {
-  const send = async () => {
-    const form = new FormData();
-    // React Native's FormData takes { uri, name, type } for files.
-    form.append('file', {
-      uri: file.uri,
-      name: file.name || 'photo.jpg',
-      type: file.mimeType || 'image/jpeg',
-    } as unknown as Blob);
+export type PhotoAsset = {
+  uri: string;
+  width?: number;
+  height?: number;
+  fileName?: string | null;
+  mimeType?: string | null;
+};
+
+const MAX_SIDE = 1600; // the server keeps 1400px at most; bigger only wastes mobile data
+
+/** Make phone photos small and plain JPEG before upload (also turns iPhone HEIC into JPEG). */
+async function shrink(photo: PhotoAsset): Promise<string> {
+  const ctx = ImageManipulator.manipulate(photo.uri);
+  const { width = 0, height = 0 } = photo;
+  if (Math.max(width, height) > MAX_SIDE) {
+    ctx.resize(width >= height ? { width: MAX_SIDE } : { height: MAX_SIDE });
+  }
+  const image = await ctx.renderAsync();
+  const result = await image.saveAsync({ compress: 0.82, format: SaveFormat.JPEG });
+  return result.uri;
+}
+
+/**
+ * Upload one photo (product photo, banner, logo) as multipart field "file".
+ * Phones: shrink, then the native uploader (sturdier than fetch + FormData). Web previews: fetch.
+ */
+export async function uploadImage<T>(path: string, photo: PhotoAsset): Promise<T> {
+  const url = buildUrl(path);
+  const auth = (): Record<string, string> => {
     const token = useAuth.getState().accessToken;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  let send: () => Promise<{ status: number; body: string }>;
+  if (Platform.OS === 'web') {
+    send = async () => {
+      const blob = await (await fetch(photo.uri)).blob();
+      const form = new FormData();
+      form.append('file', blob, photo.fileName || 'photo.jpg');
+      const res = await fetch(url, { method: 'POST', headers: { Accept: 'application/json', ...auth() }, body: form });
+      return { status: res.status, body: await res.text() };
+    };
+  } else {
+    let uri: string;
     try {
-      return await fetch(buildUrl(path), {
-        method: 'POST',
-        headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: form,
-      });
+      uri = await shrink(photo);
     } catch {
-      throw new ApiError(`Can't reach the server at ${API_URL}.`, null);
+      uri = photo.uri; // could not resize; send the original
+    }
+    send = () =>
+      new File(uri).upload(url, {
+        httpMethod: 'POST',
+        uploadType: UploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType: 'image/jpeg',
+        headers: { Accept: 'application/json', ...auth() },
+        sessionType: 'foreground',
+      });
+  }
+
+  const attempt = async () => {
+    try {
+      return await send();
+    } catch (err) {
+      const why = err instanceof Error && err.message ? ` (${err.message})` : '';
+      throw new ApiError(`Couldn't upload the photo${why}. Check your internet and try again.`, null);
     }
   };
-  let res = await send();
-  if (res.status === 401 && (await useAuth.getState().refresh())) res = await send();
-  const body = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(messageFrom(body, res.status), res.status, body?.detail);
+  let res = await attempt();
+  if (res.status === 401 && (await useAuth.getState().refresh())) res = await attempt();
+  let body: any = null;
+  try {
+    body = res.body ? JSON.parse(res.body) : null;
+  } catch {
+    body = null;
+  }
+  if (res.status < 200 || res.status >= 300) {
+    if (res.status === 413) throw new ApiError('This photo is too large. Pick a smaller one.', 413);
+    throw new ApiError(messageFrom(body, res.status), res.status, body?.detail);
+  }
   return body as T;
 }
