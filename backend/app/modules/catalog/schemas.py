@@ -92,6 +92,7 @@ class CategoryOut(BaseModel):
     image_url: str | None
     sort_order: int
     attributes: list[AttributeOut] = []  # own features only
+    product_count: int = 0  # products directly in this category (not in its sub-categories)
 
 
 class CategoryNode(BaseModel):

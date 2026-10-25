@@ -161,6 +161,7 @@
 
 | Date | What was done | Next step |
 | --- | --- | --- |
+| 25 Oct 2026 | Categories & features screen (More > Categories): category tree with reorder, add/rename/delete, category photo (shows on shop home), product count; per-category features (choice list / number / text / yes-no, unit, filter, required), inherited ones shown read-only. Backend: category photo upload, categories-order, product_count. 154 tests; tsc/lint clean. No APK built (on request) | Phone test after next APK |
 | 24 Oct 2026 | Spec, prototype, workspace, plan and tracker created | M0-02: install tools |
 | 24 Oct 2026 | Backend skeleton, docker-compose, .gitignore, CLAUDE.md handoff written | Verify backend on laptop, then M0-06 mobile |
 | 24 Oct 2026 | Docker updated and working; Postgres up. M1 backend built: OTP login, refresh tokens, /me, shop profile, join by code, distributor approve/block/assign agent, tenant isolation. 31 tests pass; full flow checked on live server | Git commit, Node 22, M0-06 mobile |

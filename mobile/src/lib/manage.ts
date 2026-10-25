@@ -55,7 +55,7 @@ export function useRefreshManage() {
   const qc = useQueryClient();
   return () =>
     Promise.all(
-      ['dashboard', 'morders', 'order', 'mproducts', 'mproduct', 'mshops', 'members', 'tenant', 'ledger', 'products', 'product'].map(
+      ['dashboard', 'morders', 'order', 'mproducts', 'mproduct', 'mshops', 'members', 'tenant', 'ledger', 'products', 'product', 'mcategories', 'mattrs', 'categories'].map(
         (key) => qc.invalidateQueries({ queryKey: [key] }),
       ),
     );
@@ -66,4 +66,18 @@ export function stockText(p: ManageProduct): string {
   const unit = p.units.find((u) => u.is_default) ?? p.units[0];
   if (!unit || unit.pieces_per_unit === 1) return `${p.stock_pieces} pcs`;
   return `${Math.floor(p.stock_pieces / unit.pieces_per_unit)} ${unit.name} · ${p.stock_pieces} pcs`;
+}
+
+/** A short internal key for a feature, made from its name: "Pack weight" + "kg" -> "pack_weight_kg". */
+export function featureKey(label: string, unit?: string | null): string {
+  const slug = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  let key = [slug(label), unit ? slug(unit) : ''].filter(Boolean).join('_');
+  if (!key) key = `feature_${Date.now() % 100000}`; // e.g. a name written only in Hindi
+  if (!/^[a-z]/.test(key)) key = `f_${key}`;
+  return key.slice(0, 40).replace(/_+$/, '');
 }

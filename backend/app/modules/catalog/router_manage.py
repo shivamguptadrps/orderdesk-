@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
-from app.core.media import MAX_UPLOAD_BYTES, delete_product_image, save_product_image, thumb_url
+from app.core.media import MAX_UPLOAD_BYTES, delete_image, delete_product_image, save_image, save_product_image, thumb_url
 from app.core.tenancy import STAFF_ROLES, TenantContext, require_roles
 from app.modules.catalog import excel, related
 from app.modules.catalog.models import MAX_CATEGORY_DEPTH, AttributeDefinition, Category, Product, ProductUnit
@@ -47,6 +47,10 @@ from app.modules.orders.models import OrderItem
 from app.modules.inventory.service import change_stock, stock_map
 
 router = APIRouter(tags=["catalog: manage"])
+
+
+class CategoryOrderIn(BaseModel):
+    ids: list[uuid.UUID]
 _staff = require_roles(*STAFF_ROLES)
 
 
@@ -67,6 +71,11 @@ async def list_categories(ctx: TenantContext = Depends(_staff), db: AsyncSession
     by_cat: dict[uuid.UUID, list[AttributeOut]] = {}
     for a in attrs:
         by_cat.setdefault(a.category_id, []).append(AttributeOut.model_validate(a))
+    counts = dict(
+        (await db.execute(
+            select(Product.category_id, func.count()).where(Product.tenant_id == ctx.tenant_id).group_by(Product.category_id)
+        )).all()
+    )
     ordered = []
 
     def walk(parent_id):
@@ -78,7 +87,7 @@ async def list_categories(ctx: TenantContext = Depends(_staff), db: AsyncSession
     return [
         CategoryOut(
             id=c.id, parent_id=c.parent_id, name=c.name, image_url=c.image_url, sort_order=c.sort_order,
-            attributes=by_cat.get(c.id, []),
+            attributes=by_cat.get(c.id, []), product_count=counts.get(c.id, 0),
         )
         for c in ordered
     ]
@@ -136,6 +145,46 @@ async def delete_category(category_id: uuid.UUID, ctx: TenantContext = Depends(_
         raise HTTPException(409, "This category still has products")
     await db.delete(cat)
     await db.commit()
+
+
+@router.post("/t/{tenant_id}/categories/{category_id}/image", response_model=CategoryOut)
+async def set_category_image(
+    category_id: uuid.UUID,
+    file: UploadFile = File(description="Square photo works best. JPG, PNG or WebP, max 8 MB"),
+    ctx: TenantContext = Depends(_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Photo for the category tile shops see on their home screen (instead of an icon)."""
+    cat = await get_category_or_404(db, ctx.tenant_id, category_id)
+    old = cat.image_url
+    cat.image_url = save_image(ctx.tenant_id, await file.read(MAX_UPLOAD_BYTES + 1), "categories")
+    await db.commit()
+    if old:
+        delete_image(ctx.tenant_id, old, "categories")
+    return CategoryOut.model_validate(cat)
+
+
+@router.delete("/t/{tenant_id}/categories/{category_id}/image", response_model=CategoryOut)
+async def remove_category_image(category_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
+    cat = await get_category_or_404(db, ctx.tenant_id, category_id)
+    old, cat.image_url = cat.image_url, None
+    await db.commit()
+    if old:
+        delete_image(ctx.tenant_id, old, "categories")
+    return CategoryOut.model_validate(cat)
+
+
+@router.put("/t/{tenant_id}/categories-order", response_model=list[CategoryOut])
+async def reorder_categories(body: CategoryOrderIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
+    """Set the order of categories that share a parent (send all of them, in the new order)."""
+    cats = list(await db.scalars(select(Category).where(Category.tenant_id == ctx.tenant_id, Category.id.in_(body.ids))))
+    if len(cats) != len(set(body.ids)) or len({c.parent_id for c in cats}) > 1:
+        raise HTTPException(422, "Send categories of one parent, each once")
+    by_id = {c.id: c for c in cats}
+    for position, cid in enumerate(body.ids, start=1):
+        by_id[cid].sort_order = position
+    await db.commit()
+    return await list_categories(ctx, db)
 
 
 # ---------- attributes (features) ----------

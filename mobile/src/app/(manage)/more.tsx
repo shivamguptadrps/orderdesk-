@@ -86,7 +86,7 @@ export default function MoreScreen() {
           <ShortcutTile icon="bar-chart" tone="teal" label="Reports" onPress={() => router.push('/manage/reports')} style={styles.tile} />
           <ShortcutTile icon="alert-circle" tone="red" label="Low stock" badge={dash.data?.low_stock} onPress={() => router.push('/manage/stock')} style={styles.tile} />
           <ShortcutTile icon="images" tone="pink" label="Banners" onPress={() => router.push('/manage/banners')} style={styles.tile} />
-          <ShortcutTile icon="qr-code" tone="green" label="Join QR" onPress={() => router.push('/manage/settings')} style={styles.tile} />
+          <ShortcutTile icon="folder-open" tone="amber" label="Categories" onPress={() => router.push('/manage/categories')} style={styles.tile} />
         </View>
 
         <SectionHeader title="Settings" />

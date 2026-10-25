@@ -215,7 +215,15 @@ export type Attribute = {
   inherited?: boolean;
 };
 
-export type FlatCategory = { id: string; parent_id: string | null; name: string; attributes: Attribute[] };
+export type FlatCategory = {
+  id: string;
+  parent_id: string | null;
+  name: string;
+  attributes: Attribute[];
+  image_url?: string | null;
+  sort_order?: number;
+  product_count?: number;
+};
 
 export type TenantShop = AgentShop & { agent_user_id: string | null; joined_at: string; lat: number | null; lng: number | null };
 

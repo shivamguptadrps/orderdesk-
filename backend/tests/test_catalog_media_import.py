@@ -239,3 +239,39 @@ async def test_import_tenant_isolation(client, cat):
     )
     assert res.status_code == 404
 
+
+
+async def test_category_photo_counts_and_order(client, cat):
+    t, owner = f"/t/{cat['a'].id}", cat["owner"]
+    sugar_id = cat["ids"]["Sugar"]
+    res = await client.post(f"{t}/categories/{sugar_id}/image", files={"file": ("c.png", _png(), "image/png")}, headers=owner)
+    assert res.status_code == 200, res.text
+    assert "/categories/" in res.json()["image_url"]
+    # shops see it on the category tree
+    tree = (await client.get(f"{t}/catalog/categories", headers=cat["shop"])).json()
+    staples = next(c for c in tree if c["name"] == "Staples")
+    assert next(c for c in staples["children"] if c["name"] == "Sugar")["image_url"] == res.json()["image_url"]
+    assert (await client.delete(f"{t}/categories/{sugar_id}/image", headers=owner)).json()["image_url"] is None
+
+    # product counts
+    await client.post(f"{t}/products", json=sugar(sugar_id), headers=owner)
+    cats = {c["name"]: c for c in (await client.get(f"{t}/categories", headers=owner)).json()}
+    assert cats["Sugar"]["product_count"] == 1 and cats["Rice"]["product_count"] == 0
+
+    # reorder siblings
+    kids = [c["id"] for c in cats.values() if c["parent_id"] == cats["Staples"]["id"]]
+    res = await client.put(f"{t}/categories-order", json={"ids": list(reversed(kids))}, headers=owner)
+    assert res.status_code == 200
+    order = [c["id"] for c in res.json() if c["parent_id"] == cats["Staples"]["id"]]
+    assert order == list(reversed(kids))
+    # mixing parents is refused
+    assert (await client.put(f"{t}/categories-order", json={"ids": [cats["Staples"]["id"], sugar_id]}, headers=owner)).status_code == 422
+
+    # other distributor and shops can't touch it
+    for method, path, kw in [
+        ("post", f"{t}/categories/{sugar_id}/image", {"files": {"file": ("c.png", _png(), "image/png")}}),
+        ("delete", f"{t}/categories/{sugar_id}/image", {}),
+        ("put", f"{t}/categories-order", {"json": {"ids": kids}}),
+    ]:
+        assert (await getattr(client, method)(path, headers=cat["owner_b"], **kw)).status_code == 404
+    assert (await client.delete(f"{t}/categories/{sugar_id}/image", headers=cat["shop"])).status_code == 403
