@@ -12,7 +12,14 @@ export type Shop = {
 
 export type Membership = { tenant_id: string; tenant_name: string; role: 'owner' | 'staff' | 'agent' };
 
-export type Me = { id: string; phone: string; name: string | null; shop: Shop | null; memberships: Membership[] };
+export type Me = {
+  id: string;
+  phone: string;
+  name: string | null;
+  shop: Shop | null;
+  memberships: Membership[];
+  is_platform_admin?: boolean;
+};
 
 export type MyDistributor = {
   tenant_id: string;
@@ -259,4 +266,17 @@ export type Banner = {
   link_category_id: string | null;
   is_active: boolean;
   sort_order: number;
+};
+
+export type AdminTenant = {
+  id: string;
+  name: string;
+  join_code: string;
+  status: 'active' | 'suspended';
+  owner_phone: string | null;
+  owner_name: string | null;
+  shops: number;
+  products: number;
+  orders: number;
+  created_at: string;
 };

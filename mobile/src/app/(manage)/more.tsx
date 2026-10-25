@@ -103,6 +103,9 @@ export default function MoreScreen() {
             { text: 'Send link', onPress: () => void Share.share({ message: importUrl }) },
           ])} border />
           <Row icon="pulse" tone="green" label="Server connection" sub={API_URL.replace(/^https?:\/\//, '')} onPress={() => router.push('/health')} border />
+          {ws.me.data?.is_platform_admin && (
+            <Row icon="shield-checkmark" tone="purple" label="Platform admin" sub="Add distributors, suspend, see all" onPress={() => router.push('/admin')} border />
+          )}
         </View>
 
         <View style={{ height: space.md }} />

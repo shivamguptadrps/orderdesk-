@@ -21,6 +21,7 @@ type Options = {
   query?: Query;
   auth?: boolean;
   timeoutMs?: number;
+  headers?: Record<string, string>;
 };
 
 export function buildUrl(path: string, query?: Query): string {
@@ -55,6 +56,7 @@ async function rawFetch(path: string, opts: Options, token: string | null): Prom
         Accept: 'application/json',
         ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...opts.headers,
       },
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
       signal: controller.signal,

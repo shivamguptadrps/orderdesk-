@@ -153,6 +153,13 @@ export default function ProfileScreen() {
         </>
       )}
 
+      {me.is_platform_admin && (
+        <>
+          <SectionTitle>OrderDesk admin</SectionTitle>
+          <Button title="Platform admin" icon="shield-checkmark-outline" variant="secondary" onPress={() => router.push('/admin')} />
+        </>
+      )}
+
       <SectionTitle>App</SectionTitle>
       <NotificationStatus />
       <View style={{ height: space.md }} />

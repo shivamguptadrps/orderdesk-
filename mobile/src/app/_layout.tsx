@@ -74,6 +74,7 @@ export default function RootLayout() {
         <Stack.Screen name="manage/reports" options={{ title: 'Reports' }} />
         <Stack.Screen name="manage/banners" options={{ title: 'Home banners' }} />
         <Stack.Screen name="health" options={{ title: 'Server connection' }} />
+        <Stack.Screen name="admin/index" options={{ title: 'Platform admin' }} />
       </Stack>
     </QueryClientProvider>
   );

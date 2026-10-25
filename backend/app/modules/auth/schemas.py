@@ -62,6 +62,7 @@ class MembershipOut(BaseModel):
 class MeOut(UserOut):
     shop: ShopOut | None
     memberships: list[MembershipOut]
+    is_platform_admin: bool = False  # shows the Platform admin menu (calls still need the admin key)
 
 
 class MeUpdateIn(BaseModel):

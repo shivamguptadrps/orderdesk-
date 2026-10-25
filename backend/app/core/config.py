@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     related_job_enabled: bool = True
     related_job_hour_ist: int = 2
 
+    # Platform admin (adding distributors from the app). Both are needed; empty key = feature off.
+    platform_admin_phones: str = ""  # comma-separated, e.g. "+918173837031"
+    platform_admin_key: str = ""
+
     whatsapp_token: str = ""
     whatsapp_phone_number_id: str = ""
     whatsapp_otp_template: str = ""

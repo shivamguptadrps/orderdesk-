@@ -11,6 +11,7 @@ from app.core.deps import get_current_user
 from app.core.otp_sender import send_otp
 from app.modules.auth.models import OtpRequest, RefreshToken, User
 from app.modules.notifications.models import PushToken
+from app.modules.platform.router import is_platform_admin
 from app.modules.auth.schemas import (
     LogoutIn,
     MembershipOut,
@@ -152,6 +153,7 @@ async def _me(db: AsyncSession, user: User) -> MeOut:
         name=user.name,
         shop=ShopOut.model_validate(shop) if shop else None,
         memberships=[MembershipOut(tenant_id=t, tenant_name=n, role=r) for t, n, r in rows],
+        is_platform_admin=is_platform_admin(user),
     )
 
 
