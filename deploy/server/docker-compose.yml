@@ -20,6 +20,10 @@ services:
       POSTGRES_DB: orderdesk
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      default:
+        # Unique name on purpose: the api is also on kamkarao's network, which has its own "db".
+        aliases: [orderdesk-db]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orderdesk -d orderdesk"]
       interval: 5s
@@ -31,7 +35,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://orderdesk:${DB_PASSWORD}@db:5432/orderdesk
+      DATABASE_URL: postgresql+asyncpg://orderdesk:${DB_PASSWORD}@orderdesk-db:5432/orderdesk
       MEDIA_DIR: /app/uploads
     volumes:
       - uploads:/app/uploads
