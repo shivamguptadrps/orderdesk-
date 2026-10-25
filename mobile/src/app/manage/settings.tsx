@@ -110,7 +110,27 @@ function Settings({ t, base, isOwner }: { t: TenantInfo; base: string; isOwner: 
       </Card>
 
       {!isOwner ? (
-        <Text style={[styles.small, { marginTop: space.lg }]}>Only the owner can change the business settings.</Text>
+        <>
+          <SectionTitle>Business profile & brand</SectionTitle>
+          <Card>
+            <View style={styles.lockNote}>
+              <Ionicons name="lock-closed" size={16} color={colors.warn} />
+              <Text style={styles.lockText}>Only the owner can change these. Ask the owner, or log in with the owner&apos;s number.</Text>
+            </View>
+            <View style={styles.logoRow}>
+              <View style={styles.logo}>
+                {t.logo_url ? <Image source={{ uri: mediaUrl(t.logo_url) }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Ionicons name="image-outline" size={28} color={colors.faint} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>{t.name}</Text>
+                <View style={[styles.row, { marginTop: 6, alignItems: 'center' }]}>
+                  <View style={[styles.swatchSmall, { backgroundColor: t.brand_color ?? colors.primary }]} />
+                  <Text style={styles.small}>{t.logo_url ? 'Logo set' : 'No logo yet'} · brand colour</Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+        </>
       ) : (
         <>
           {saved && (
@@ -173,6 +193,9 @@ const styles = StyleSheet.create({
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   swatch: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  lockNote: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: colors.warnSoft, borderRadius: radius.sm, padding: space.sm, marginBottom: space.md },
+  lockText: { flex: 1, fontSize: 13, color: colors.warn, fontWeight: '600', lineHeight: 18 },
+  swatchSmall: { width: 16, height: 16, borderRadius: 8, marginRight: 6 },
   logo: { width: 64, height: 64, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
 });

@@ -21,13 +21,15 @@ export default function ManageLayout() {
         tabBarInactiveTintColor: colors.muted,
         headerTitleStyle: { fontWeight: '700' },
         sceneStyle: { backgroundColor: colors.bg },
+        tabBarLabelStyle: { fontWeight: '700', fontSize: 11 },
       }}>
       <Tabs.Screen
         name="dashboard"
         options={{
           title: current.name,
+          headerShown: false,
           tabBarLabel: 'Today',
-          tabBarIcon: ({ color, size }) => <Ionicons name="speedometer-outline" size={size} color={color as string} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color as string} />,
         }}
       />
       <Tabs.Screen
@@ -49,6 +51,7 @@ export default function ManageLayout() {
         name="more"
         options={{
           title: 'More',
+          headerShown: false,
           tabBarBadge: waiting > 0 ? waiting : undefined,
           tabBarIcon: ({ color, size }) => <Ionicons name="grid-outline" size={size} color={color as string} />,
         }}

@@ -68,3 +68,30 @@ export function packName(name: string, pieces: number): string {
   const base = name.replace(/\s*\(\d+\)\s*$/, '');
   return pieces > 1 ? `${base} of ${pieces}` : base;
 }
+
+/** "just now", "12m ago", "3h ago", "2d ago" - for how long an order has been waiting. */
+export function timeAgo(iso: string, now = Date.now()): string {
+  const mins = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+export function hoursSince(iso: string, now = Date.now()): number {
+  return (now - new Date(iso).getTime()) / 3600000;
+}
+
+export function greeting(date = new Date()): string {
+  const h = date.getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+/** ₹1.2L / ₹45K / ₹900 for small spaces. */
+export function shortInr(v: number): string {
+  if (v >= 1e7) return `₹${(v / 1e7).toFixed(1)}Cr`;
+  if (v >= 1e5) return `₹${(v / 1e5).toFixed(1)}L`;
+  if (v >= 1e3) return `₹${(v / 1e3).toFixed(v >= 1e4 ? 0 : 1)}K`;
+  return `₹${Math.round(v)}`;
+}
