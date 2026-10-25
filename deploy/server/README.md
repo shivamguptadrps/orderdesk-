@@ -46,6 +46,13 @@ Restore a database dump:
 docker compose exec -T db pg_restore -U orderdesk -d orderdesk --clean --if-exists < ~/orderdesk-backups/db_<date>.dump
 ```
 
+## Platform admin
+
+Distributors can be added from the app (Profile or More > Platform admin) by phones listed in
+`PLATFORM_ADMIN_PHONES`, after entering `PLATFORM_ADMIN_KEY` once. Both live in `.env`; change the key by
+editing `.env` and running `docker compose up -d api`. The script still works:
+`docker compose exec api python -m scripts.seed_tenant --name "..." --owner-phone 98xxxxxxxx`.
+
 ## Useful
 
 ```sh
