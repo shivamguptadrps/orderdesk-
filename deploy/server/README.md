@@ -32,11 +32,13 @@ Migrations run automatically when the api starts.
 
 ## Backups
 
-Nightly cron (`crontab -e`):
+Nightly at 02:30 IST (server clock is UTC), in root's crontab (`sudo crontab -e`):
 
 ```
-30 2 * * *  /home/ubuntu/orderdesk/deploy/server/backup.sh >> /home/ubuntu/orderdesk-backups/backup.log 2>&1
+0 21 * * * BACKUP_DIR=/home/ubuntu/orderdesk-backups /home/ubuntu/orderdesk/deploy/server/backup.sh >> /home/ubuntu/orderdesk-backups/backup.log 2>&1
 ```
+
+Backups stay on the same server; copy them off now and then (a dead server takes them with it).
 
 Restore a database dump:
 

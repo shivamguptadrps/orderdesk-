@@ -1,7 +1,7 @@
 #!/bin/sh
 # Nightly backup of the OrderDesk database and uploaded photos. Keeps 14 days.
 # Installed as a cron job (see deploy/server/README.md):
-#   30 2 * * *  /home/ubuntu/orderdesk/deploy/server/backup.sh >> /home/ubuntu/orderdesk-backups/backup.log 2>&1
+#   0 21 * * * BACKUP_DIR=/home/ubuntu/orderdesk-backups /home/ubuntu/orderdesk/deploy/server/backup.sh >> ... (02:30 IST)
 set -eu
 DIR="${BACKUP_DIR:-$HOME/orderdesk-backups}"
 STAMP=$(date +%Y-%m-%d_%H%M)
