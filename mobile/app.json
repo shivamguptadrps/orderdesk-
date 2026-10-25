@@ -8,7 +8,8 @@
     "scheme": "orderdesk",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "in.orderdesk.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,9 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "in.orderdesk.app",
+      "versionCode": 1
     },
     "web": {
       "output": "server",
@@ -57,6 +60,17 @@
     "experiments": {
       "typedRoutes": false,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "120d93f1-e363-4d30-bfa6-02ef65121af9"
+      }
+    },
+    "owner": "shivamguptadrps210001"
   }
 }
