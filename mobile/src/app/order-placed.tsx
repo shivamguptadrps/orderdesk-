@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CallDistributor } from '@/components/shop/CallDistributor';
 import { feedback } from '@/lib/feedback';
 import { inr } from '@/lib/format';
 import { radius, space } from '@/lib/theme';
@@ -116,6 +117,7 @@ export default function OrderPlacedScreen() {
         </View>
 
         <Animated.View style={[styles.actions, fade]}>
+          <CallDistributor tenantId={tenant} name={from} onGreen />
           <Pressable
             onPress={() => {
               router.dismissAll();

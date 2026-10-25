@@ -105,3 +105,9 @@ export function gridColumns(width: number): number {
 export function cartSavings(lines: { mrp?: number | null; pieces_per_unit: number; qty: number; line_total: number }[]): number {
   return Math.round(lines.reduce((sum, l) => sum + (l.mrp ? Math.max(0, l.mrp * l.pieces_per_unit * l.qty - l.line_total) : 0), 0));
 }
+
+/** "+919811122233" -> "98111 22233"; landlines and anything else are shown as they are. */
+export function phoneLabel(phone: string): string {
+  const m = /^\+91(\d{5})(\d{5})$/.exec(phone);
+  return m ? `${m[1]} ${m[2]}` : phone;
+}

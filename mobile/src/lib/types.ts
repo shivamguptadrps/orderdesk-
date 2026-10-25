@@ -28,6 +28,7 @@ export type MyDistributor = {
   brand_color: string | null;
   status: 'pending' | 'active' | 'blocked';
   joined_at: string;
+  phone?: string | null; // call to confirm an order fast
 };
 
 export type CategoryNode = { id: string; name: string; image_url: string | null; children: CategoryNode[] };
@@ -160,6 +161,8 @@ export type TenantInfo = {
   join_code: string | null;
   agent_shops_auto_approve: boolean | null;
   agents_see_all_shops: boolean | null;
+  contact_phone?: string | null; // number shops call (own setting, else the owner's phone)
+  contact_phone_custom?: string | null; // owner/staff only: the setting itself
 };
 
 export type Dashboard = {

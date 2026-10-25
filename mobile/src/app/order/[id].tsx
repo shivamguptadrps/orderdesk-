@@ -4,6 +4,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CallDistributor } from '@/components/shop/CallDistributor';
 import { OrderProgress } from '@/components/shop/OrderProgress';
 import { Banner, Button, Card, ErrorView, Loading, SectionTitle, SkeletonList, StatusBadge } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
@@ -107,6 +108,11 @@ function OrderView({
         </Text>
         <OrderProgress status={o.status} />
       </Card>
+      {o.status === 'pending' && (
+        <View style={{ marginTop: space.md }}>
+          <CallDistributor tenantId={tenant} name={o.distributor_name} />
+        </View>
+      )}
 
       <SectionTitle>Items</SectionTitle>
       <Card style={{ paddingVertical: space.sm }}>

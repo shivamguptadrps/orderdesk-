@@ -20,7 +20,7 @@ from app.modules.inventory.models import Stock
 from app.modules.orders.models import Cart, Order
 from app.modules.shops.models import DistributorShop, Shop
 from app.modules.tenants.models import TenantMember
-from app.modules.tenants.service import get_or_create_user, unique_join_code
+from app.modules.tenants.service import clean_contact_phone, contact_phone, get_or_create_user, unique_join_code
 
 router = APIRouter(tags=["tenants"])
 _staff = require_roles(*STAFF_ROLES)
@@ -36,9 +36,11 @@ class TenantOut(BaseModel):
     join_code: str | None  # only shown to owner/staff
     agent_shops_auto_approve: bool | None  # only shown to owner/staff
     agents_see_all_shops: bool | None  # only shown to owner/staff
+    contact_phone: str | None = None  # number shops call: own setting, else the owner's phone
+    contact_phone_custom: str | None = None  # only shown to owner/staff: the setting itself (None = owner's phone)
 
 
-def _tenant_out(ctx: TenantContext) -> TenantOut:
+async def _tenant_out(ctx: TenantContext, db: AsyncSession) -> TenantOut:
     t, is_staff = ctx.tenant, ctx.role in STAFF_ROLES
     return TenantOut(
         id=t.id,
@@ -49,12 +51,14 @@ def _tenant_out(ctx: TenantContext) -> TenantOut:
         join_code=t.join_code if is_staff else None,
         agent_shops_auto_approve=t.agent_shops_auto_approve if is_staff else None,
         agents_see_all_shops=t.agents_see_all_shops if is_staff else None,
+        contact_phone=await contact_phone(db, t),
+        contact_phone_custom=t.contact_phone if is_staff else None,
     )
 
 
 @router.get("/t/{tenant_id}", response_model=TenantOut)
-async def get_tenant(ctx: TenantContext = Depends(get_tenant_context)):
-    return _tenant_out(ctx)
+async def get_tenant(ctx: TenantContext = Depends(get_tenant_context), db: AsyncSession = Depends(get_db)):
+    return await _tenant_out(ctx, db)
 
 
 class TenantSettingsIn(BaseModel):
@@ -65,6 +69,12 @@ class TenantSettingsIn(BaseModel):
     brand_color: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$", examples=["#1F6FEB"])
     agent_shops_auto_approve: bool | None = None
     agents_see_all_shops: bool | None = None
+    contact_phone: str | None = Field(default=None, max_length=20, examples=["9876543210"])  # "" = use owner's phone
+
+    @field_validator("contact_phone")
+    @classmethod
+    def _contact(cls, v: str | None) -> str | None:
+        return clean_contact_phone(v) if v and v.strip() else v
 
 
 @router.put("/t/{tenant_id}/settings", response_model=TenantOut)
@@ -73,9 +83,11 @@ async def update_settings(body: TenantSettingsIn, ctx: TenantContext = Depends(_
     for field, value in data.items():
         if value is None and field in ("name", "agent_shops_auto_approve", "agents_see_all_shops"):
             continue
+        if field == "contact_phone" and not (value or "").strip():
+            value = None  # back to the owner's phone
         setattr(ctx.tenant, field, value.strip() if isinstance(value, str) and field == "name" else value)
     await db.commit()
-    return _tenant_out(ctx)
+    return await _tenant_out(ctx, db)
 
 
 # ---------- team: staff and agents ----------
@@ -262,7 +274,7 @@ async def regenerate_join_code(ctx: TenantContext = Depends(_owner), db: AsyncSe
     """New join code (e.g. if the old one was shared too widely). Shops already joined stay joined."""
     ctx.tenant.join_code = await unique_join_code(db)
     await db.commit()
-    return _tenant_out(ctx)
+    return await _tenant_out(ctx, db)
 
 
 @router.post("/t/{tenant_id}/logo", response_model=TenantOut)
@@ -276,4 +288,4 @@ async def upload_logo(
     await db.commit()
     if old:
         delete_image(ctx.tenant_id, old, "logo")
-    return _tenant_out(ctx)
+    return await _tenant_out(ctx, db)

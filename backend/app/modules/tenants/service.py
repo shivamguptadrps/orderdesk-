@@ -51,3 +51,29 @@ async def create_tenant(
         await apply_fmcg_template(db, tenant.id)
     await db.flush()
     return tenant
+
+
+async def contact_phone(db: AsyncSession, tenant: Tenant) -> str | None:
+    """The number shops should call: the distributor's own setting, else the (first) owner's phone."""
+    if tenant.contact_phone:
+        return tenant.contact_phone
+    return await db.scalar(
+        select(User.phone)
+        .join(TenantMember, TenantMember.user_id == User.id)
+        .where(TenantMember.tenant_id == tenant.id, TenantMember.role == "owner")
+        .order_by(TenantMember.created_at, User.phone)
+        .limit(1)
+    )
+
+
+def clean_contact_phone(raw: str) -> str:
+    """A mobile becomes +91XXXXXXXXXX; a landline like 0512-2345678 is kept as digits."""
+    from app.core.phone import normalize_phone
+
+    try:
+        return normalize_phone(raw)
+    except ValueError:
+        digits = "".join(ch for ch in raw if ch.isdigit())
+        if 8 <= len(digits) <= 13:
+            return digits
+        raise ValueError("Enter a valid mobile or landline number") from None

@@ -26,6 +26,8 @@ class Tenant(UUIDPk, Timestamps, Base):
     agent_shops_auto_approve: Mapped[bool] = mapped_column(default=False, server_default=false())
     # Agents may order for every active shop (True) or only for shops assigned to them (False)
     agents_see_all_shops: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # Number shops call to confirm orders fast. Empty = the owner's phone.
+    contact_phone: Mapped[str | None] = mapped_column(String(20))
 
 
 class TenantMember(UUIDPk, Timestamps, Base):

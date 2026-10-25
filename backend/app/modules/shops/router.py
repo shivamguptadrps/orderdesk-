@@ -26,7 +26,7 @@ from app.modules.shops.schemas import (
     TenantShopOut,
 )
 from app.modules.tenants.models import Tenant, TenantMember
-from app.modules.tenants.service import get_or_create_user
+from app.modules.tenants.service import contact_phone, get_or_create_user
 
 router = APIRouter(tags=["shops"])
 
@@ -71,7 +71,7 @@ async def update_my_shop(body: ShopUpdateIn, user: User = Depends(get_current_us
     return shop
 
 
-def _my_distributor_out(link: DistributorShop, tenant: Tenant) -> MyDistributorOut:
+async def _my_distributor_out(db: AsyncSession, link: DistributorShop, tenant: Tenant) -> MyDistributorOut:
     return MyDistributorOut(
         tenant_id=tenant.id,
         name=tenant.name,
@@ -79,6 +79,7 @@ def _my_distributor_out(link: DistributorShop, tenant: Tenant) -> MyDistributorO
         brand_color=tenant.brand_color,
         status=link.status,
         joined_at=link.created_at,
+        phone=await contact_phone(db, tenant),
     )
 
 
@@ -102,13 +103,13 @@ async def join_distributor(
     )
     if link is not None:
         response.status_code = 200  # already joined; return the existing link
-        return _my_distributor_out(link, tenant)
+        return await _my_distributor_out(db, link, tenant)
 
     link = DistributorShop(tenant_id=tenant.id, shop_id=shop.id, status="pending", joined_via_code=code)
     db.add(link)
     await db.commit()
     background.add_task(notify.shop_wants_to_join, tenant.id, shop.id)
-    return _my_distributor_out(link, tenant)
+    return await _my_distributor_out(db, link, tenant)
 
 
 @router.get("/shops/me/distributors", response_model=list[MyDistributorOut])
@@ -120,7 +121,7 @@ async def list_my_distributors(user: User = Depends(get_current_user), db: Async
         .where(DistributorShop.shop_id == shop.id, Tenant.status == "active")
         .order_by(Tenant.name)
     )
-    return [_my_distributor_out(link, tenant) for link, tenant in rows]
+    return [await _my_distributor_out(db, link, tenant) for link, tenant in rows]
 
 
 # ---------- distributor side ----------

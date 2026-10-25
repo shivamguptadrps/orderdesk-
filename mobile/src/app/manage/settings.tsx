@@ -8,7 +8,7 @@ import { Banner, Button, Card, ErrorView, Field, Loading, SectionTitle } from '@
 import { api, buildUrl, errorText, uploadImage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { downloadAndShare } from '@/lib/files';
-import { mediaUrl } from '@/lib/format';
+import { mediaUrl, phoneLabel } from '@/lib/format';
 import { useManage, useRefreshManage, useTenant } from '@/lib/manage';
 import { colors, radius, space } from '@/lib/theme';
 import type { TenantInfo } from '@/lib/types';
@@ -26,6 +26,7 @@ export default function SettingsScreen() {
 function Settings({ t, base, isOwner }: { t: TenantInfo; base: string; isOwner: boolean }) {
   const refresh = useRefreshManage();
   const [name, setName] = useState(t.name);
+  const [phone, setPhone] = useState(t.contact_phone_custom ?? '');
   const [busy, setBusy] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [qrKey, setQrKey] = useState(0);
@@ -142,6 +143,28 @@ function Settings({ t, base, isOwner }: { t: TenantInfo; base: string; isOwner: 
           <Card>
             <Field label="Business name" value={name} onChangeText={setName} />
             <Button title="Save name" variant="secondary" loading={busy === 'settings'} disabled={!name.trim() || name.trim() === t.name} onPress={() => put({ name: name.trim() }, 'Name saved')} />
+
+            <View style={{ marginTop: space.lg }}>
+              <Field
+                label="Phone shops call to confirm orders"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                maxLength={20}
+                placeholder={t.contact_phone ? `Empty = your number (${phoneLabel(t.contact_phone)})` : 'Mobile or landline'}
+              />
+              <Text style={[styles.small, { marginBottom: space.sm }]}>
+                Shown as a Call button after a shop places an order.{' '}
+                {t.contact_phone ? `Now: ${phoneLabel(t.contact_phone)}${t.contact_phone_custom ? '' : ' (owner)'}` : ''}
+              </Text>
+              <Button
+                title="Save phone"
+                variant="secondary"
+                loading={busy === 'settings'}
+                disabled={phone.trim() === (t.contact_phone_custom ?? '')}
+                onPress={() => put({ contact_phone: phone.trim() }, phone.trim() ? 'Phone saved' : "Shops will call the owner's number")}
+              />
+            </View>
 
             <Text style={[styles.label, { marginTop: space.lg }]}>Brand colour</Text>
             <View style={styles.swatches}>

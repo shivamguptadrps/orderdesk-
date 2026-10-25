@@ -55,6 +55,7 @@ class MyDistributorOut(BaseModel):
     brand_color: str | None
     status: str  # pending, active, blocked
     joined_at: datetime
+    phone: str | None = None  # call to confirm an order fast
 
 
 class TenantShopOut(BaseModel):
