@@ -150,6 +150,13 @@ function Settings({ t, base, isOwner }: { t: TenantInfo; base: string; isOwner: 
               </View>
               <Switch value={!!t.agent_shops_auto_approve} onValueChange={(v) => put({ agent_shops_auto_approve: v }, v ? 'Agent shops are approved automatically' : 'You will approve agent shops')} />
             </View>
+            <View style={[styles.switchRow, { marginTop: space.lg }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Agents can order for all shops</Text>
+                <Text style={styles.small}>Off: each agent sees only the shops you assign (More › Shops or Team). On: every agent sees every active shop.</Text>
+              </View>
+              <Switch value={!!t.agents_see_all_shops} onValueChange={(v) => put({ agents_see_all_shops: v }, v ? 'Agents now see all shops' : 'Agents see only their assigned shops')} />
+            </View>
           </Card>
         </>
       )}

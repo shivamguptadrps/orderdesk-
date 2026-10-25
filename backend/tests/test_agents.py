@@ -337,3 +337,56 @@ async def test_agent_who_owns_a_shop_orders_for_it(client, ag, make_shop):
         assert res.status_code == 200, res.text
     res = await client.post(f"{t}/orders", json={}, headers=headers)
     assert res.status_code == 201 and res.json()["source"] == "shop" and res.json()["shop_name"] == "Ravi Store"
+
+
+# ---------- assigning shops to agents ----------
+
+
+async def test_bulk_assign_shops_to_agent(client, ag, make_shop):
+    t = ag["t"]
+    h2, shop2 = await make_shop("9555511111", shop_name="Second Shop")
+    await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=h2)
+    await client.post(f"{t}/shops/{shop2['id']}/approve", headers=ag["owner"])
+
+    # give agent2 both shops: the first one moves away from agent 1
+    res = await client.put(f"{t}/members/{ag['agent2_id']}/shops", json={"shop_ids": [ag["shop_id"], shop2["id"]]}, headers=ag["staff"])
+    assert res.status_code == 200, res.text
+    assert sorted(s["shop_name"] for s in res.json()) == ["Second Shop", "Sharma Kirana Store"]
+    assert (await client.get(f"{t}/agent/shops", headers=ag["agent"])).json() == []
+    assert len((await client.get(f"{t}/agent/shops", headers=ag["agent2"])).json()) == 2
+
+    # untick one: it becomes unassigned
+    res = await client.put(f"{t}/members/{ag['agent2_id']}/shops", json={"shop_ids": [shop2["id"]]}, headers=ag["owner"])
+    assert [s["shop_name"] for s in res.json()] == ["Second Shop"]
+    shops = {s["shop_name"]: s["agent_user_id"] for s in (await client.get(f"{t}/shops", headers=ag["owner"])).json()}
+    assert shops["Sharma Kirana Store"] is None
+
+    # rules: only agents, only this distributor's shops, only owner/staff
+    staff_id = next(m["user_id"] for m in (await client.get(f"{t}/members", headers=ag["owner"])).json() if m["role"] == "staff")
+    assert (await client.put(f"{t}/members/{staff_id}/shops", json={"shop_ids": []}, headers=ag["owner"])).status_code == 400
+    assert (await client.put(f"{t}/members/{ag['agent2_id']}/shops", json={"shop_ids": [ag["agent_id"]]}, headers=ag["owner"])).status_code == 404
+    assert (await client.put(f"{t}/members/{ag['agent2_id']}/shops", json={"shop_ids": []}, headers=ag["agent2"])).status_code == 403
+    assert (await client.put(f"{t}/members/{ag['agent2_id']}/shops", json={"shop_ids": []}, headers=ag["owner_b"])).status_code == 404
+
+
+async def test_agents_see_all_shops_setting(client, ag, make_shop):
+    t = ag["t"]
+    h2, shop2 = await make_shop("9555522222", shop_name="Unassigned Shop")
+    await client.post("/shops/me/distributors", json={"join_code": "GUPTA7"}, headers=h2)
+    await client.post(f"{t}/shops/{shop2['id']}/approve", headers=ag["owner"])
+    # off: agent2 has nothing and can't order for the shop
+    assert (await client.get(f"{t}/agent/shops", headers=ag["agent2"])).json() == []
+    res = await client.post(f"{t}/cart/items", params={"shop_id": shop2["id"]}, json={"unit_id": ag["bag"], "qty": 1}, headers=ag["agent2"])
+    assert res.status_code == 404
+    # staff can't change it, owner can
+    assert (await client.put(f"{t}/settings", json={"agents_see_all_shops": True}, headers=ag["staff"])).status_code == 403
+    res = await client.put(f"{t}/settings", json={"agents_see_all_shops": True}, headers=ag["owner"])
+    assert res.json()["agents_see_all_shops"] is True
+    # on: every active shop, ordering works, orders show up for the agent
+    names = sorted(s["shop_name"] for s in (await client.get(f"{t}/agent/shops", headers=ag["agent2"])).json())
+    assert names == ["Sharma Kirana Store", "Unassigned Shop"]
+    res = await client.post(f"{t}/cart/items", params={"shop_id": shop2["id"]}, json={"unit_id": ag["bag"], "qty": 1}, headers=ag["agent2"])
+    assert res.status_code == 200, res.text
+    order = (await client.post(f"{t}/orders", params={"shop_id": shop2["id"]}, json={}, headers=ag["agent2"])).json()
+    assert order["source"] == "agent"
+    assert (await client.get(f"{t}/orders/{order['id']}", headers=ag["agent"])).status_code == 200

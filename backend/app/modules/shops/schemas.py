@@ -77,6 +77,10 @@ class TenantShopOut(BaseModel):
     joined_at: datetime
 
 
+class AgentShopsIn(BaseModel):
+    shop_ids: list[uuid.UUID] = Field(default_factory=list, max_length=5000)
+
+
 class AssignAgentIn(BaseModel):
     agent_user_id: uuid.UUID | None = None
 

@@ -24,6 +24,8 @@ class Tenant(UUIDPk, Timestamps, Base):
     next_order_no: Mapped[int] = mapped_column(default=1, server_default="1")
     # Shops added by an agent start active (True) or wait for approval (False)
     agent_shops_auto_approve: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # Agents may order for every active shop (True) or only for shops assigned to them (False)
+    agents_see_all_shops: Mapped[bool] = mapped_column(default=False, server_default=false())
 
 
 class TenantMember(UUIDPk, Timestamps, Base):

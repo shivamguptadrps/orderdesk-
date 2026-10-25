@@ -35,6 +35,7 @@ class TenantOut(BaseModel):
     my_role: str  # owner, staff, agent or shop
     join_code: str | None  # only shown to owner/staff
     agent_shops_auto_approve: bool | None  # only shown to owner/staff
+    agents_see_all_shops: bool | None  # only shown to owner/staff
 
 
 def _tenant_out(ctx: TenantContext) -> TenantOut:
@@ -47,6 +48,7 @@ def _tenant_out(ctx: TenantContext) -> TenantOut:
         my_role=ctx.role,
         join_code=t.join_code if is_staff else None,
         agent_shops_auto_approve=t.agent_shops_auto_approve if is_staff else None,
+        agents_see_all_shops=t.agents_see_all_shops if is_staff else None,
     )
 
 
@@ -62,13 +64,14 @@ class TenantSettingsIn(BaseModel):
     logo_url: str | None = Field(default=None, max_length=500)
     brand_color: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$", examples=["#1F6FEB"])
     agent_shops_auto_approve: bool | None = None
+    agents_see_all_shops: bool | None = None
 
 
 @router.put("/t/{tenant_id}/settings", response_model=TenantOut)
 async def update_settings(body: TenantSettingsIn, ctx: TenantContext = Depends(_owner), db: AsyncSession = Depends(get_db)):
     data = body.model_dump(exclude_unset=True)
     for field, value in data.items():
-        if value is None and field in ("name", "agent_shops_auto_approve"):
+        if value is None and field in ("name", "agent_shops_auto_approve", "agents_see_all_shops"):
             continue
         setattr(ctx.tenant, field, value.strip() if isinstance(value, str) and field == "name" else value)
     await db.commit()

@@ -86,9 +86,20 @@ async def resolve_shop(
             DistributorShop.status == "active",
         )
     )
-    if link is None or (ctx.role == "agent" and link.agent_user_id != ctx.user.id):
+    if link is None:
+        raise HTTPException(404, "Shop not found")
+    if ctx.role == "agent" and link.agent_user_id != ctx.user.id and not ctx.tenant.agents_see_all_shops:
         raise HTTPException(404, "Shop not found")
     return shop_id
+
+
+def agent_shop_ids(ctx: TenantContext):
+    """Shop ids an agent may see and order for: assigned to them, or every active shop if the
+    distributor turned on "agents see all shops". Use inside .in_(...)."""
+    query = select(DistributorShop.shop_id).where(DistributorShop.tenant_id == ctx.tenant_id)
+    if ctx.tenant.agents_see_all_shops:
+        return query.where(DistributorShop.status == "active")
+    return query.where(DistributorShop.agent_user_id == ctx.user.id)
 
 
 def require_roles(*roles: str):

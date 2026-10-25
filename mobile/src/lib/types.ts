@@ -151,6 +151,7 @@ export type TenantInfo = {
   my_role: 'owner' | 'staff' | 'agent' | 'shop';
   join_code: string | null;
   agent_shops_auto_approve: boolean | null;
+  agents_see_all_shops: boolean | null;
 };
 
 export type Dashboard = {

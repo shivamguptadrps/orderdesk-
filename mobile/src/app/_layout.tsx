@@ -68,6 +68,7 @@ export default function RootLayout() {
         <Stack.Screen name="manage/product/[id]" options={{ title: 'Product' }} />
         <Stack.Screen name="manage/shops" options={{ title: 'Shops' }} />
         <Stack.Screen name="manage/team" options={{ title: 'Team' }} />
+        <Stack.Screen name="manage/agent/[id]" options={{ title: 'Assign shops' }} />
         <Stack.Screen name="manage/settings" options={{ title: 'Join code & settings' }} />
         <Stack.Screen name="manage/stock" options={{ title: 'Low stock' }} />
         <Stack.Screen name="manage/reports" options={{ title: 'Reports' }} />

@@ -3,7 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from app.modules.orders.models import Order
 from app.modules.shops import notify
 from app.modules.shops.models import LINK_STATUSES, DistributorShop, Shop
 from app.modules.shops.schemas import (
+    AgentShopsIn,
     AssignAgentIn,
     JoinDistributorIn,
     MyDistributorOut,
@@ -248,6 +249,36 @@ async def assign_agent(
     return await _fresh(db, ctx.tenant_id, shop_id)
 
 
+@router.put("/t/{tenant_id}/members/{user_id}/shops", response_model=list[TenantShopOut])
+async def set_agent_shops(
+    user_id: uuid.UUID, body: AgentShopsIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    """Give an agent exactly these shops. Shops ticked here move to this agent (from any other agent);
+    shops this agent had that are not in the list become unassigned."""
+    role = await db.scalar(
+        select(TenantMember.role).where(TenantMember.tenant_id == ctx.tenant_id, TenantMember.user_id == user_id)
+    )
+    if role is None:
+        raise HTTPException(404, "Not a member")
+    if role != "agent":
+        raise HTTPException(400, "Shops can only be assigned to agents")
+    wanted = set(body.shop_ids)
+    links = list(await db.scalars(
+        select(DistributorShop)
+        .where(DistributorShop.tenant_id == ctx.tenant_id)
+        .where(or_(DistributorShop.agent_user_id == user_id, DistributorShop.shop_id.in_(wanted)))
+        .with_for_update()
+    ))
+    found = {link.shop_id for link in links}
+    if wanted - found:
+        raise HTTPException(404, "Shop not found")
+    for link in links:
+        link.agent_user_id = user_id if link.shop_id in wanted else None
+    await db.commit()
+    query = _tenant_shop_query(ctx.tenant_id).where(DistributorShop.agent_user_id == user_id).order_by(Shop.shop_name)
+    return [_tenant_shop_out(*row) for row in await db.execute(query)]
+
+
 # ---------- agents ----------
 
 _agent = require_roles("agent")
@@ -257,9 +288,13 @@ _agent = require_roles("agent")
 async def my_assigned_shops(
     status: str | None = None, ctx: TenantContext = Depends(_agent), db: AsyncSession = Depends(get_db)
 ):
-    """Shops this agent looks after. Only 'active' shops can be ordered for."""
+    """Shops this agent looks after (all active shops if the distributor allows it). Only 'active'
+    shops can be ordered for."""
     _check_link_status(status)
-    query = _tenant_shop_query(ctx.tenant_id).where(DistributorShop.agent_user_id == ctx.user.id)
+    mine = DistributorShop.agent_user_id == ctx.user.id
+    if ctx.tenant.agents_see_all_shops:
+        mine = or_(mine, DistributorShop.status == "active")
+    query = _tenant_shop_query(ctx.tenant_id).where(mine)
     if status:
         query = query.where(DistributorShop.status == status)
     return [_tenant_shop_out(*row) for row in await db.execute(query.order_by(Shop.shop_name))]

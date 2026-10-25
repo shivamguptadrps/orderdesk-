@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.deps import get_current_user
-from app.core.tenancy import STAFF_ROLES, TenantContext, get_tenant_context, require_roles, resolve_shop
+from app.core.tenancy import STAFF_ROLES, TenantContext, get_tenant_context, agent_shop_ids, require_roles, resolve_shop
 from app.modules.auth.models import User
 from app.modules.catalog import related
 from app.modules.catalog.queries import catalog_cards, count
@@ -68,9 +68,7 @@ async def get_buyer(
 
 
 def _agent_shop_ids(ctx: TenantContext):
-    return select(DistributorShop.shop_id).where(
-        DistributorShop.tenant_id == ctx.tenant_id, DistributorShop.agent_user_id == ctx.user.id
-    )
+    return agent_shop_ids(ctx)
 
 
 # ---------- cart (shop) ----------
