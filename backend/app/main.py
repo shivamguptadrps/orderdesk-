@@ -28,12 +28,14 @@ from app.modules.tenants.router import router as tenants_router
 
 settings = get_settings()
 
-# Refuse to run in production with unsafe dev settings.
-if settings.app_env == "prod":
+# Refuse to run on a server with unsafe dev settings.
+# "staging" = a real server used for testing: login codes are shown in the app (no WhatsApp yet),
+# so it must only hold test data. "prod" = real shops: codes go by WhatsApp only.
+if settings.app_env in ("prod", "staging"):
     if settings.jwt_secret in ("", "change-me") or len(settings.jwt_secret) < 32:
-        raise RuntimeError("Set a long random JWT_SECRET for production")
-    if settings.otp_mode == "log":
-        raise RuntimeError("OTP_MODE=log prints codes to the log; use 'whatsapp' in production")
+        raise RuntimeError("Set a long random JWT_SECRET on a server")
+if settings.app_env == "prod" and settings.otp_mode == "log":
+    raise RuntimeError("OTP_MODE=log prints codes to the log; use 'whatsapp' in production")
 
 
 

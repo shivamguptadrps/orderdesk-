@@ -1,0 +1,9 @@
+# Site block added to the existing Caddy's Caddyfile on the server (kamkarao/deploy/Caddyfile).
+# Caddy gets and renews the HTTPS certificate by itself.
+orderdesk.kamkarao.com {
+	encode zstd gzip
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy orderdesk-api:8000
+}

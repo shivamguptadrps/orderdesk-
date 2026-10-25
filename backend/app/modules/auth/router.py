@@ -68,7 +68,8 @@ async def request_otp(body: OtpRequestIn, db: AsyncSession = Depends(get_db)):
     )
     await db.commit()
     await send_otp(body.phone, code)
-    dev_code = code if s.app_env == "dev" and s.otp_mode == "log" else None
+    # Test servers (dev, staging) show the code in the app until WhatsApp sending is set up.
+    dev_code = code if s.app_env in ("dev", "staging") and s.otp_mode == "log" else None
     return OtpRequestOut(sent=True, expires_in_seconds=s.otp_ttl_minutes * 60, dev_code=dev_code)
 
 

@@ -1,0 +1,59 @@
+# OrderDesk on the server (Docker Compose project "orderdesk").
+#
+# - db:  its own PostgreSQL, reachable only inside this project.
+# - api: the FastAPI backend. It also joins the network of the Caddy web server already running
+#        on this machine (kamkarao), under the name "orderdesk-api", so Caddy can forward
+#        https://orderdesk.kamkarao.com to it. No ports are opened on the host.
+#
+# Run from this folder:  docker compose up -d --build
+# Settings and secrets live in ./.env on the server only (see .env.example). Never commit .env.
+
+name: orderdesk
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: orderdesk
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: orderdesk
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orderdesk -d orderdesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ../../backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://orderdesk:${DB_PASSWORD}@db:5432/orderdesk
+      MEDIA_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      default: {}
+      web:
+        aliases: [orderdesk-api]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  web:
+    external: true
+    name: kamkarao_default # the existing Caddy's network
+
+volumes:
+  pgdata:
+  uploads:
