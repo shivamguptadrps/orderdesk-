@@ -29,6 +29,23 @@ class Push:
     title: str
     body: str
     data: dict[str, Any] = field(default_factory=dict)
+    ring: bool = False  # new order for the distributor: rings with the bell (Android channel "new_orders")
+
+
+# The app creates these Android channels (mobile/src/lib/push.ts) and bundles the ring sound.
+RING_CHANNEL, RING_SOUND = "new_orders", "order_ring.wav"
+
+
+def _message(token: str, p: Push) -> dict[str, Any]:
+    return {
+        "to": token,
+        "title": p.title,
+        "body": p.body,
+        "data": p.data,
+        "sound": RING_SOUND if p.ring else "default",
+        "channelId": RING_CHANNEL if p.ring else "default",
+        "priority": "high",
+    }
 
 
 async def send(db: AsyncSession, pushes: list[Push]) -> int:
@@ -45,7 +62,7 @@ async def send(db: AsyncSession, pushes: list[Push]) -> int:
     ):
         tokens.setdefault(user_id, []).append(token)
     messages = [
-        {"to": token, "title": p.title, "body": p.body, "data": p.data, "sound": "default", "priority": "high"}
+        _message(token, p)
         for p in pushes
         for user_id in p.user_ids
         for token in tokens.get(user_id, [])

@@ -1,6 +1,6 @@
 """Who gets a push notification when an order changes.
 
-- New order, or a shop/agent cancels: the distributor's owner and staff.
+- New order, or a shop/agent cancels: the distributor's owner and staff. A new order rings (bell sound).
 - Approved, rejected, dispatched, delivered, or cancelled by the distributor: the shop owner,
   and the agent who placed it (if any).
 The person who made the change is never notified about their own action.
@@ -66,7 +66,7 @@ async def order_changed(order_id: uuid.UUID, event: str, actor_id: uuid.UUID) ->
                 else:
                     title = "Order #{no} cancelled".format(**values)
                     body = "{shop} cancelled the order{reason_suffix}".format(**values)
-                pushes.append(Push(staff - {actor_id}, title, body, data | {"for": "manage"}))
+                pushes.append(Push(staff - {actor_id}, title, body, data | {"for": "manage"}, ring=event == "placed"))
             elif event in TO_SHOP:
                 title, body = (t.format(**values) for t in TO_SHOP[event])
                 owner = await db.scalar(select(Shop.owner_user_id).where(Shop.id == order.shop_id))

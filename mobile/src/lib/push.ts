@@ -1,7 +1,7 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { AndroidImportance } from 'expo-notifications';
+import { AndroidImportance, AndroidNotificationVisibility } from 'expo-notifications';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
@@ -10,6 +10,9 @@ import { storage } from './storage';
 
 /** Saved so logout can tell the server to stop notifying this phone (read by auth.ts). */
 export const PUSH_TOKEN_KEY = 'push.token';
+
+/** Android channel for new orders; the server sends `channelId: 'new_orders'` (notifications/service.py). */
+export const NEW_ORDER_CHANNEL = 'new_orders';
 
 export type PushStatus =
   | 'unknown'
@@ -50,8 +53,19 @@ export async function registerForPush(): Promise<PushStatus> {
 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'Orders',
+        name: 'Order updates',
         importance: AndroidImportance.HIGH,
+      });
+      // Distributor side: a new order rings with its own bell and a long buzz, even on the lock screen.
+      // Android fixes a channel's sound when it is first made, so a new sound needs a new channel id.
+      await Notifications.setNotificationChannelAsync(NEW_ORDER_CHANNEL, {
+        name: 'New orders (ring)',
+        description: 'Rings when a shop or agent places an order',
+        importance: AndroidImportance.MAX,
+        sound: 'order_ring.wav',
+        vibrationPattern: [0, 600, 300, 600, 300, 900],
+        enableVibrate: true,
+        lockscreenVisibility: AndroidNotificationVisibility.PUBLIC,
       });
     }
     let { status } = await Notifications.getPermissionsAsync();

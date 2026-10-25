@@ -47,7 +47,8 @@
       [
         "expo-notifications",
         {
-          "color": "#1F6FEB"
+          "color": "#1F6FEB",
+          "sounds": ["./assets/sounds/order_ring.wav"]
         }
       ],
       [

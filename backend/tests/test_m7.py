@@ -195,6 +195,8 @@ async def test_order_notifications(client, o):
     order = await placed_order(client, o)
     assert sent_to(OWNER_TOKEN) == [("New order #1", "Sharma Kirana Store · ₹5,364.00 · 2 items")]
     assert sent_to(SHOP_TOKEN) == []  # not told about their own action
+    ring = next(m for m in push.sent_log if m["to"] == OWNER_TOKEN)
+    assert (ring["channelId"], ring["sound"]) == ("new_orders", "order_ring.wav")  # a new order rings
 
     await client.post(f"{t}/orders/{order['id']}/approve", json={"items": []}, headers=o["owner"])
     await client.post(f"{t}/orders/{order['id']}/dispatch", json={"items": []}, headers=o["owner"])
@@ -208,6 +210,7 @@ async def test_order_notifications(client, o):
     assert len(sent_to(OWNER_TOKEN)) == 1
     data = next(m["data"] for m in push.sent_log if m["to"] == SHOP_TOKEN)
     assert data == {"type": "order", "tenant_id": str(o["a"].id), "order_id": order["id"], "for": "shop"}
+    assert all(m["channelId"] == "default" for m in push.sent_log if m["to"] == SHOP_TOKEN)  # updates don't ring
 
 
 async def test_reject_and_cancel_notifications(client, o):

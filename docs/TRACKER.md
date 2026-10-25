@@ -151,7 +151,7 @@
 | M8-03 | DuckDNS subdomain + HTTPS | [x] | https://orderdesk.kamkarao.com (GoDaddy A record, Let's Encrypt via Caddy) |
 | M8-04 | Nightly DB backup, 14-day retention | [x] | root cron 02:30 IST -> ~/orderdesk-backups (db + photos). Copy off-server now and then |
 | M8-05 | Sentry for backend and app | [ ] | |
-| M8-06 | EAS build APK, install on pilot phones | [~] | EAS project linked; `preview` profile = APK for the server. Android push needs Firebase (FCM) |
+| M8-06 | EAS build APK, install on pilot phones | [~] | EAS project linked; `preview` profile = APK for the server. Firebase (FCM) set up 25 Oct; push works from the next APK |
 | M8-07 | Pilot: uncle + 10 shops for one week; collect feedback | [ ] | |
 | M8-08 | Play Store internal testing → production | [ ] | |
 
@@ -161,6 +161,7 @@
 
 | Date | What was done | Next step |
 | --- | --- | --- |
+| 25 Oct 2026 | New-order ring: Android channel `new_orders` (bell sound `order_ring.wav`, max importance, long buzz, lock screen); server sends new orders to it, other updates stay on `default`. Firebase project `orderdesk-4b789`: FCM V1 key uploaded to EAS, google-services.json kept out of git (EAS file variable GOOGLE_SERVICES_JSON; profiles set `environment`). Installed expo-asset (doctor 20/20) | Build APK when asked, test a real order ringing |
 | 25 Oct 2026 | Categories & features screen (More > Categories): category tree with reorder, add/rename/delete, category photo (shows on shop home), product count; per-category features (choice list / number / text / yes-no, unit, filter, required), inherited ones shown read-only. Backend: category photo upload, categories-order, product_count. 154 tests; tsc/lint clean. No APK built (on request) | Phone test after next APK |
 | 24 Oct 2026 | Spec, prototype, workspace, plan and tracker created | M0-02: install tools |
 | 24 Oct 2026 | Backend skeleton, docker-compose, .gitignore, CLAUDE.md handoff written | Verify backend on laptop, then M0-06 mobile |
