@@ -81,6 +81,7 @@ export default function RootLayout() {
         <Stack.Screen name="manage/banners" options={{ title: 'Home banners' }} />
         <Stack.Screen name="manage/categories" options={{ title: 'Categories & features' }} />
         <Stack.Screen name="manage/counter" options={{ title: 'Counter sale' }} />
+        <Stack.Screen name="manage/agent-report/[id]" options={{ title: 'Agent' }} />
         <Stack.Screen name="manage/category/[id]" options={{ title: 'Category' }} />
         <Stack.Screen name="health" options={{ title: 'Server connection' }} />
         <Stack.Screen name="admin/index" options={{ title: 'Platform admin' }} />

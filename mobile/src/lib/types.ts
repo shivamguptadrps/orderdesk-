@@ -273,11 +273,51 @@ export type Report = {
   shops_ordering: number;
   new_shops: number;
   status_counts: Partial<Record<OrderStatus, number>>;
-  by_source: Partial<Record<'shop' | 'agent' | 'admin', number>>;
-  by_day: { date: string; orders: number; value: number }[];
-  top_products: { product_id: string | null; name: string; pieces: number; value: number; orders: number }[];
-  top_shops: { shop_id: string; name: string; orders: number; value: number }[];
+  by_source: Partial<Record<OrderSource, number>>;
+  by_day: ReportDay[];
+  top_products: ReportProduct[];
+  top_shops: ReportShop[];
   top_agents: { user_id: string; name: string; orders: number; value: number }[];
+  // newer fields (older servers leave them out)
+  prev_orders?: number;
+  prev_value?: number;
+  channels?: { source: OrderSource; orders: number; value: number }[];
+  payments?: { paid_value: number; unpaid_value: number; unpaid_orders: number } | null;
+  top_categories?: { category_id: string | null; name: string; value: number; pieces: number }[];
+  by_hour?: { hour: number; orders: number }[];
+  agents?: AgentStat[];
+  quiet_shops?: { shop_id: string; name: string; city: string; last_order_at: string; agent_name: string | null }[];
+  quiet_shops_total?: number;
+};
+
+export type OrderSource = 'shop' | 'agent' | 'admin' | 'counter';
+export type ReportDay = { date: string; orders: number; value: number };
+export type ReportProduct = { product_id: string | null; name: string; pieces: number; value: number; orders: number };
+export type ReportShop = { shop_id: string; name: string; orders: number; value: number };
+
+export type AgentStat = {
+  user_id: string;
+  name: string;
+  phone: string;
+  orders: number;
+  value: number;
+  average_order: number;
+  shops_ordered: number;
+  assigned_shops: number;
+  shops_signed_up: number;
+  last_order_at: string | null;
+  share: number;
+};
+
+export type AgentReport = {
+  days: number;
+  start: string;
+  end: string;
+  agent: AgentStat;
+  by_day: ReportDay[];
+  top_shops: ReportShop[];
+  top_products: ReportProduct[];
+  idle_shops: { shop_id: string; name: string; city: string; last_order_at: string | null }[];
 };
 
 export type Banner = {

@@ -72,6 +72,16 @@ export default function TeamScreen() {
                   </View>
                 )}
               </Pressable>
+              {m.role === 'agent' && (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/manage/agent-report/[id]', params: { id: m.user_id, name: m.name ?? m.phone } })}
+                  hitSlop={8}
+                  style={styles.sales}
+                  accessibilityLabel={`${m.name ?? m.phone} sales report`}>
+                  <Ionicons name="bar-chart-outline" size={18} color={colors.primary} />
+                  <Text style={styles.salesText}>Sales</Text>
+                </Pressable>
+              )}
               {canRemove && (
                 <Pressable
                   onPress={() =>
@@ -118,6 +128,8 @@ export default function TeamScreen() {
 }
 
 const styles = StyleSheet.create({
+  sales: { alignItems: 'center', paddingHorizontal: space.sm },
+  salesText: { fontSize: 11, fontWeight: '700', color: colors.primary },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.md },
   border: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   name: { fontSize: 15, fontWeight: '700', color: colors.text },
