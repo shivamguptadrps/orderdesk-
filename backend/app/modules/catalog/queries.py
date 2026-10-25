@@ -6,12 +6,13 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, exists, func, or_, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.media import thumb_url
 from app.modules.catalog.models import Product, ProductUnit
-from app.modules.catalog.schemas import CatalogCard, CatalogUnitOut, ProductOut, UnitOut
+from app.modules.catalog.schemas import CatalogCard, CatalogUnitOut, ProductOut, SizeOut, UnitOut
 from app.modules.inventory.service import stock_map
 
 # word_similarity() score above which a fuzzy match counts (0..1). Catches typos like "chini" for "cheeni".
@@ -61,9 +62,44 @@ def default_unit(product: Product) -> ProductUnit | None:
     return next((u for u in product.units if u.is_default), product.units[0])
 
 
-async def catalog_cards(db: AsyncSession, products: list[Product]) -> list[CatalogCard]:
+def shop_visible():
+    """Conditions for a product a shop may see: active and with at least one pack size."""
+    return (Product.status == "active", exists().where(ProductUnit.product_id == Product.id))
+
+
+def group_key():
+    """Products without a size group are a group of one."""
+    return func.coalesce(Product.variant_group_id, Product.id)
+
+
+def collapse_variants(query: Select) -> Select:
+    """Keep one product per size group (the first one made among those matching), so a list shows
+    "India Gate Basmati · 3 sizes" once instead of three cards. Keeps the query's own order."""
+    sub = query.order_by(None).with_only_columns(
+        Product.id.label("id"), group_key().label("g"), Product.created_at.label("c")
+    ).subquery()
+    first = select(sub.c.id).ext(distinct_on(sub.c.g)).order_by(sub.c.g, sub.c.c, sub.c.id)
+    return query.where(Product.id.in_(first))
+
+
+async def variant_counts(db: AsyncSession, tenant_id: uuid.UUID, group_ids: set[uuid.UUID]) -> dict[uuid.UUID, int]:
+    """How many shop-visible sizes each group has."""
+    if not group_ids:
+        return {}
+    rows = await db.execute(
+        select(Product.variant_group_id, func.count())
+        .where(Product.tenant_id == tenant_id, Product.variant_group_id.in_(group_ids), *shop_visible())
+        .group_by(Product.variant_group_id)
+    )
+    return dict(rows.all())
+
+
+async def catalog_cards(db: AsyncSession, products: list[Product], count_variants: bool = False) -> list[CatalogCard]:
     """Product cards as a shop sees them in lists. Products must have at least one pack size."""
     stock = await stock_map(db, [p.id for p in products])
+    counts: dict[uuid.UUID, int] = {}
+    if count_variants and products:
+        counts = await variant_counts(db, products[0].tenant_id, {p.variant_group_id for p in products if p.variant_group_id})
     cards = []
     for p in products:
         pieces = stock.get(p.id, 0)
@@ -77,9 +113,57 @@ async def catalog_cards(db: AsyncSession, products: list[Product]) -> list[Catal
                 mrp=p.mrp,
                 default_unit=catalog_unit_out(default_unit(p), pieces),
                 in_stock=pieces > 0,
+                variant_group_id=p.variant_group_id,
+                variant_label=p.variant_label,
+                variant_count=counts.get(p.variant_group_id, 1) if p.variant_group_id else 1,
             )
         )
     return cards
+
+
+async def shop_sizes(db: AsyncSession, product: Product) -> list[CatalogCard]:
+    """All shop-visible sizes of this product (itself included), cheapest default pack first."""
+    if product.variant_group_id is None:
+        return []
+    group = (
+        await db.scalars(
+            select(Product).where(
+                Product.tenant_id == product.tenant_id, Product.variant_group_id == product.variant_group_id, *shop_visible()
+            )
+        )
+    ).all()
+    if len(group) < 2:
+        return []
+    cards = await catalog_cards(db, list(group))
+    for c in cards:
+        c.variant_count = len(cards)
+    return sorted(cards, key=lambda c: (c.default_unit.price / c.default_unit.pieces_per_unit, c.default_unit.price, c.name))
+
+
+async def manage_sizes(db: AsyncSession, product: Product) -> list[SizeOut]:
+    """The other sizes in this product's group, as the distributor sees them (hidden ones too)."""
+    if product.variant_group_id is None:
+        return []
+    others = (
+        await db.scalars(
+            select(Product).where(
+                Product.tenant_id == product.tenant_id,
+                Product.variant_group_id == product.variant_group_id,
+                Product.id != product.id,
+            ).order_by(Product.created_at)
+        )
+    ).all()
+    stock = await stock_map(db, [p.id for p in others])
+    out = []
+    for p in others:
+        unit = default_unit(p)
+        out.append(
+            SizeOut(
+                id=p.id, label=p.variant_label or p.name, name=p.name, status=p.status,
+                price=unit.price if unit else None, stock_pieces=stock.get(p.id, 0),
+            )
+        )
+    return out
 
 
 def product_out(product: Product, stock_pieces: int) -> ProductOut:
@@ -100,6 +184,8 @@ def product_out(product: Product, stock_pieces: int) -> ProductOut:
         stock_pieces=stock_pieces,
         created_at=product.created_at,
         updated_at=product.updated_at,
+        variant_group_id=product.variant_group_id,
+        variant_label=product.variant_label,
     )
 
 

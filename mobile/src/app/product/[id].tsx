@@ -91,6 +91,30 @@ function Product({ id, ws }: { id: string; ws: Workspace }) {
           <Text style={styles.name}>{p.name}</Text>
           <Text style={styles.path}>{p.category_path.join(' › ')}</Text>
 
+          {(p.variants?.length ?? 0) > 1 && (
+            <View style={{ marginTop: space.md }}>
+              <Text style={styles.sizeHead}>
+                Size: <Text style={{ color: colors.text }}>{p.variant_label || p.name}</Text>
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingRight: space.sm }}>
+                {p.variants!.map((v) => {
+                  const on = v.id === p.id;
+                  return (
+                    <Pressable
+                      key={v.id}
+                      onPress={() => !on && router.replace(`/product/${v.id}`)}
+                      style={[styles.sizeChip, on && styles.sizeChipOn, !v.in_stock && { opacity: 0.55 }]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}>
+                      <Text style={[styles.sizeLabel, on && { color: colors.primary }]}>{v.variant_label || v.name}</Text>
+                      <Text style={styles.sizePrice}>{v.in_stock ? inr(v.default_unit.price) : 'Out of stock'}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
           <View style={styles.priceRow}>
             <Text style={styles.price}>{inr(unit.price)}</Text>
             {off ? <Text style={styles.mrp}>MRP {inr(off.mrp)}</Text> : null}
@@ -307,6 +331,11 @@ function Gallery({ images, size, off }: { images: string[]; size: number; off?: 
 }
 
 const styles = StyleSheet.create({
+  sizeHead: { fontSize: 13, fontWeight: '700', color: colors.muted, marginBottom: 8 },
+  sizeChip: { minWidth: 76, paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center' },
+  sizeChipOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  sizeLabel: { fontSize: 15, fontWeight: '800', color: colors.text },
+  sizePrice: { fontSize: 12, color: colors.muted, marginTop: 2 },
   gallery: {
     alignSelf: 'center',
     backgroundColor: colors.card,

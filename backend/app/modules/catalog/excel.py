@@ -39,7 +39,10 @@ BASE_COLUMNS = {
     "description": "Description",
     "search_aliases": "Search words (Hindi / Hinglish)",
     "status": "Status (active / hidden)",
+    "size_group": "Size group (same text = sizes of one product)",
+    "variant_label": "Size label (e.g. 5 kg)",
 }
+# The two size columns are optional: old sheets without them still import and leave existing groups alone.
 PACK_FIELDS = {
     "name": "name *",
     "pieces_per_unit": "pieces *",
@@ -222,6 +225,14 @@ def _parse_row(row_no: int, cells: list[Any], fixed: dict[str, int], features: d
         "search_aliases": _text(cell("search_aliases")),
         "status": status,
     }
+    # Blank size cells leave the product as it is (groups made in the app stay).
+    group = _text(cell("size_group"))
+    if group:
+        # Same text -> same group id, so importing the sheet again keeps the groups (queries are per tenant).
+        fields["variant_group_id"] = uuid.uuid5(uuid.NAMESPACE_URL, f"orderdesk-size-group:{group.lower()}")
+    label = _text(cell("variant_label"))
+    if label:
+        fields["variant_label"] = label[:40]
 
     values = {k: cells[i] for k, i in features.items() if i < len(cells) and _text(cells[i]) is not None}
     attributes: dict[str, Any] = {}

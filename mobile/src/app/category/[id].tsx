@@ -8,6 +8,7 @@ import { ActionSheetIOS, Alert, FlatList, Platform, Pressable, RefreshControl, S
 import { CartBar } from '@/components/shop/CartBar';
 import { categoryLook } from '@/components/shop/categoryLook';
 import { ProductTile } from '@/components/shop/ProductTile';
+import { SizeSheet } from '@/components/shop/SizeSheet';
 import { Empty, ErrorView, Loading, SkeletonList } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useCartActions } from '@/lib/cartActions';
@@ -61,6 +62,7 @@ function CategoryView({ initialId, ws }: { initialId: string; ws: Workspace }) {
   const [topId, setTopId] = useState<string | null>(null);
   const [subId, setSubId] = useState<string | null | undefined>(undefined); // undefined = as opened
   const [sort, setSort] = useState<Sort>('relevance');
+  const [sizesOf, setSizesOf] = useState<CatalogCard | null>(null);
 
   const top = tree.data?.find((c) => c.id === (topId ?? start?.top.id)) ?? null;
   const sub = subId === undefined ? (topId ? null : (start?.sub?.id ?? null)) : subId;
@@ -68,7 +70,7 @@ function CategoryView({ initialId, ws }: { initialId: string; ws: Workspace }) {
 
   const products = useQuery({
     queryKey: ['products', ws.tenantId, categoryId, ''],
-    queryFn: () => api<Page<CatalogCard>>(`${base}/catalog/products`, { query: { category_id: categoryId, limit: 100 } }),
+    queryFn: () => api<Page<CatalogCard>>(`${base}/catalog/products`, { query: { category_id: categoryId, limit: 100, group_variants: true } }),
     enabled: !!categoryId,
   });
   const { width } = useWindowDimensions();
@@ -189,6 +191,7 @@ function CategoryView({ initialId, ws }: { initialId: string; ws: Workspace }) {
                   locked={ws.mode === 'agent' && !ws.agentShop}
                   onOpen={() => router.push(`/product/${item.id}`)}
                   onAdd={() => actions.add(item.id, item.default_unit, undefined, item.name)}
+                  onChooseSize={() => setSizesOf(item)}
                   onQty={(qty) => {
                     const line = lines.get(item.default_unit.id);
                     if (line) actions.setQty(item.id, line, qty);
@@ -200,6 +203,7 @@ function CategoryView({ initialId, ws }: { initialId: string; ws: Workspace }) {
         </View>
       </View>
       <CartBar ws={ws} />
+      {sizesOf && <SizeSheet ws={ws} product={sizesOf} onClose={() => setSizesOf(null)} />}
     </View>
   );
 }

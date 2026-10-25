@@ -55,6 +55,9 @@ export type CatalogCard = {
   mrp: number | null;
   default_unit: Unit;
   in_stock: boolean;
+  variant_group_id?: string | null;
+  variant_label?: string | null; // '5 kg'
+  variant_count?: number; // sizes to pick from (lists asked with group_variants)
 };
 
 export type CatalogDetail = {
@@ -69,6 +72,8 @@ export type CatalogDetail = {
   features: { key: string; label: string; value: string | number | boolean; unit: string | null }[];
   units: Unit[];
   in_stock: boolean;
+  variant_label?: string | null;
+  variants?: CatalogCard[]; // every size incl. this one; empty when there are no others
 };
 
 export type CartLine = {
@@ -203,7 +208,12 @@ export type ManageProduct = {
   status: 'active' | 'hidden';
   units: ManageUnit[];
   stock_pieces: number;
+  variant_group_id?: string | null;
+  variant_label?: string | null;
+  sizes?: SizeInfo[]; // other sizes in the group
 };
+
+export type SizeInfo = { id: string; label: string; name: string; status: 'active' | 'hidden'; price: number | null; stock_pieces: number };
 
 export type Attribute = {
   id: string;

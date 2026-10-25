@@ -70,6 +70,7 @@ class Product(UUIDPk, Timestamps, Base):
         UniqueConstraint("tenant_id", "sku"),
         CheckConstraint("status IN ('active', 'hidden')", name="status"),
         Index("ix_products_tenant_id_category_id", "tenant_id", "category_id"),
+        Index("ix_products_tenant_id_variant_group_id", "tenant_id", "variant_group_id"),
         Index(
             "ix_products_search_text_trgm",
             "search_text",
@@ -90,6 +91,10 @@ class Product(UUIDPk, Timestamps, Base):
     images: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
     status: Mapped[str] = mapped_column(String(10), default="active", server_default="active")
     search_text: Mapped[str] = mapped_column(Text, Computed(SEARCH_TEXT_SQL, persisted=True))
+    # Sizes of one product (Rice 1 kg / 5 kg) are separate products sharing a group id.
+    # Each keeps its own price, stock and photos; shops see one card with a size picker.
+    variant_group_id: Mapped[uuid.UUID | None] = mapped_column()
+    variant_label: Mapped[str | None] = mapped_column(String(40))  # "5 kg"; shown on the size chip
 
     units: Mapped[list["ProductUnit"]] = relationship(
         order_by="(ProductUnit.sort_order, ProductUnit.pieces_per_unit)",

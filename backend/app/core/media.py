@@ -69,6 +69,25 @@ def save_image(tenant_id: uuid.UUID, data: bytes, kind: str, sizes: dict[str, in
     return f"{_url_prefix()}/{tenant_id}/{kind}/{name}_800.jpg"
 
 
+def copy_product_image(tenant_id: uuid.UUID, url: str) -> str | None:
+    """Copy one of our stored product photos (both sizes) so another product owns its own files.
+    Returns the new URL, the same URL for external photos, or None if the file is gone."""
+    import shutil
+
+    prefix = f"{_url_prefix()}/{tenant_id}/products/"
+    if not url.startswith(prefix):
+        return url
+    root = media_root()
+    name = uuid.uuid4().hex
+    new_url = f"{prefix}{name}_800.jpg"
+    for old, new in ((url, new_url), (thumb_url(url), thumb_url(new_url))):
+        src = (root / old[len(_url_prefix()) + 1 :]).resolve()
+        if not (src.is_relative_to(root) and src.is_file()):
+            return None
+        shutil.copyfile(src, root / new[len(_url_prefix()) + 1 :])
+    return new_url
+
+
 def delete_product_image(tenant_id: uuid.UUID, url: str) -> None:
     delete_image(tenant_id, url, "products")
 

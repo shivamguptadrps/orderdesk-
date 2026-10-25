@@ -13,6 +13,7 @@ import { BannerCarousel } from '@/components/shop/BannerCarousel';
 import { CartBar } from '@/components/shop/CartBar';
 import { categoryLook } from '@/components/shop/categoryLook';
 import { ProductTile } from '@/components/shop/ProductTile';
+import { SizeSheet } from '@/components/shop/SizeSheet';
 import { Button, Empty, ErrorView, Loading, SkeletonList } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { useCartActions } from '@/lib/cartActions';
@@ -159,9 +160,10 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
   const banners = useQuery({ queryKey: ['banners', ws.tenantId], queryFn: () => api<Banner[]>(`${base}/catalog/banners`) });
   const products = useQuery({
     queryKey: ['products', ws.tenantId, null, q],
-    queryFn: () => api<Page<CatalogCard>>(`${base}/catalog/products`, { query: { q, limit: 100 } }),
+    queryFn: () => api<Page<CatalogCard>>(`${base}/catalog/products`, { query: { q, limit: 100, group_variants: true } }),
   });
   const lines = useMemo(() => new Map((cart.data?.items ?? []).map((l) => [l.unit_id, l])), [cart.data]);
+  const [sizesOf, setSizesOf] = useState<CatalogCard | null>(null);
   const deals = useMemo(
     () =>
       (products.data?.items ?? [])
@@ -242,6 +244,7 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
 
   if (products.isError) return <ErrorView message={errorText(products.error)} onRetry={() => products.refetch()} />;
   return (
+    <>
     <FlatList
       data={products.data?.items ?? []}
       keyExtractor={(p) => p.id}
@@ -268,6 +271,7 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
           busy={actions.busy === item.id}
           onOpen={() => router.push(`/product/${item.id}`)}
           onAdd={() => actions.add(item.id, item.default_unit, undefined, item.name)}
+          onChooseSize={() => setSizesOf(item)}
           onQty={(qty) => {
             const line = lines.get(item.default_unit.id);
             if (line) actions.setQty(item.id, line, qty);
@@ -275,6 +279,8 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
         />
       )}
     />
+    {sizesOf && <SizeSheet ws={ws} product={sizesOf} onClose={() => setSizesOf(null)} />}
+    </>
   );
 }
 

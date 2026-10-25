@@ -171,6 +171,7 @@ class ProductIn(BaseModel):
     status: Literal["active", "hidden"] = "active"
     units: list[UnitIn] = Field(min_length=1)
     opening_stock_pieces: int = Field(default=0, ge=0)
+    variant_label: str | None = Field(default=None, max_length=40, examples=["5 kg"])
 
     @model_validator(mode="after")
     def _unit_names_unique(self):
@@ -193,6 +194,43 @@ class ProductUpdate(BaseModel):
     attributes: dict[str, Any] | None = None
     images: list[Annotated[str, Field(max_length=500)]] | None = Field(default=None, max_length=10)
     status: Literal["active", "hidden"] | None = None
+    variant_label: str | None = Field(default=None, max_length=40)
+
+
+class SizeOut(BaseModel):
+    """Another size of the same product, as the distributor sees it."""
+
+    id: uuid.UUID
+    label: str  # variant_label, or the product name if it has none
+    name: str
+    status: str
+    price: Money | None  # default pack
+    stock_pieces: int
+
+
+class AddSizeIn(BaseModel):
+    """Make another size of a product: copies its category, brand, description, features and photos."""
+
+    variant_label: str = Field(min_length=1, max_length=40, examples=["5 kg"])
+    source_label: str | None = Field(default=None, max_length=40, description="Label for the existing product if it has none yet, e.g. '1 kg'")
+    name: str = Field(min_length=1, max_length=200, examples=["India Gate Basmati 5 kg"])
+    sku: str | None = Field(default=None, max_length=64)
+    mrp: PriceIn | None = None
+    attributes: dict[str, Any] | None = Field(default=None, description="Features that differ, e.g. {'weight_kg': 5}")
+    units: list[UnitIn] = Field(min_length=1)
+    opening_stock_pieces: int = Field(default=0, ge=0)
+    copy_photos: bool = True
+
+    @model_validator(mode="after")
+    def _unit_names_unique(self):
+        names = [u.name.strip().lower() for u in self.units]
+        if len(set(names)) != len(names):
+            raise ValueError("Pack size names must be unique")
+        return self
+
+
+class SizeGroupIn(BaseModel):
+    join_product_id: uuid.UUID | None = Field(default=None, description="Become a size of this product; null = leave the group")
 
 
 class ProductOut(BaseModel):
@@ -212,6 +250,9 @@ class ProductOut(BaseModel):
     stock_pieces: int
     created_at: datetime
     updated_at: datetime
+    variant_group_id: uuid.UUID | None = None
+    variant_label: str | None = None
+    sizes: list[SizeOut] = []  # other sizes in the group (only on single-product responses)
 
 
 class ProductPage(BaseModel):
@@ -238,6 +279,9 @@ class CatalogCard(BaseModel):
     mrp: Money | None
     default_unit: CatalogUnitOut
     in_stock: bool
+    variant_group_id: uuid.UUID | None = None
+    variant_label: str | None = None
+    variant_count: int = 1  # sizes a shop can pick from (only counts with group_variants=true lists)
 
 
 class CatalogPage(BaseModel):
@@ -258,6 +302,8 @@ class CatalogDetail(BaseModel):
     features: list[FeatureOut]
     units: list[CatalogUnitOut]
     in_stock: bool
+    variant_label: str | None = None
+    variants: list["CatalogCard"] = []  # all sizes incl. this one, smallest price first; empty if none
 
 
 class FilterOut(BaseModel):

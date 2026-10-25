@@ -16,9 +16,11 @@ from app.modules.catalog.queries import (
     apply_search,
     catalog_cards,
     catalog_unit_out,
+    collapse_variants,
     count,
     get_product_or_404,
     parse_filters,
+    shop_sizes,
 )
 from app.modules.catalog.schemas import (
     CatalogCard,
@@ -98,6 +100,7 @@ async def catalog_products(
     brand: str | None = None,
     filters: str | None = Query(default=None, description='JSON, e.g. {"grain": "Medium", "weight_kg": [1, 5]}'),
     in_stock_only: bool = False,
+    group_variants: bool = Query(default=False, description="One card per product with sizes (newer apps); old apps get every size"),
     limit: int = Query(default=30, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -115,10 +118,12 @@ async def catalog_products(
     if in_stock_only:
         query = query.where(exists().where(Stock.product_id == Product.id, Stock.qty_pieces > 0))
     query = await apply_search(db, query, q)
+    if group_variants:
+        query = collapse_variants(query)
 
     total = await count(db, query)
     products = (await db.scalars(query.limit(limit).offset(offset))).all()
-    return CatalogPage(items=await catalog_cards(db, products), total=total)
+    return CatalogPage(items=await catalog_cards(db, products, count_variants=group_variants), total=total)
 
 
 @router.get("/t/{tenant_id}/catalog/products/{product_id}", response_model=CatalogDetail)
@@ -149,6 +154,8 @@ async def catalog_product(
         features=features,
         units=[catalog_unit_out(u, pieces) for u in product.units],
         in_stock=pieces > 0,
+        variant_label=product.variant_label,
+        variants=await shop_sizes(db, product),
     )
 
 

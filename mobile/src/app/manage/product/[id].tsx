@@ -6,6 +6,7 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, 
 import { CategoryPicker } from '@/components/manage/CategoryPicker';
 import { FeaturesEditor, featuresForApi, featuresFromApi, type FeatureValues } from '@/components/manage/FeaturesEditor';
 import { PhotosSection } from '@/components/manage/PhotosSection';
+import { SizesSection } from '@/components/manage/SizesSection';
 import { RelatedSection } from '@/components/manage/RelatedSection';
 import { StockSection } from '@/components/manage/StockSection';
 import { emptyUnit, UnitForm, unitForApi, type UnitDraft } from '@/components/manage/UnitForm';
@@ -261,6 +262,10 @@ function Editor({
             <SectionTitle>Stock</SectionTitle>
             <Card>
               <StockSection product={product} base={base} onChanged={reload} />
+            </Card>
+            <SectionTitle>Sizes</SectionTitle>
+            <Card>
+              <SizesSection product={product} base={base} onChanged={reload} />
             </Card>
             <SectionTitle>Customers also buy</SectionTitle>
             <Card>

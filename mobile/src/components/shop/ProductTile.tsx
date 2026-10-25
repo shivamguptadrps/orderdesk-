@@ -96,6 +96,7 @@ export function ProductTile({
   onOpen,
   onAdd,
   onQty,
+  onChooseSize,
   columns = 2,
 }: {
   p: CatalogCard;
@@ -105,12 +106,15 @@ export function ProductTile({
   onOpen: () => void;
   onAdd: () => void;
   onQty: (qty: number) => void;
+  /** Product comes in several sizes: ADD opens the size picker instead. */
+  onChooseSize?: () => void;
   /** Cards per row, so a card never stretches wider than its column. */
   columns?: number;
 }) {
   const u = p.default_unit;
   const off = saving(p.mrp, u.price, u.pieces_per_unit);
   const sellable = p.in_stock && u.in_stock;
+  const sizes = onChooseSize && (p.variant_count ?? 1) > 1 ? p.variant_count! : 0;
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => [styles.tile, { maxWidth: `${100 / columns}%` }, pressed && { opacity: 0.92 }]}>
       <View style={styles.imageBox}>
@@ -132,15 +136,23 @@ export function ProductTile({
         )}
         {sellable && (
           <View style={styles.addSpot}>
-            <AddControl unit={u} line={line} busy={busy} disabled={locked} onAdd={onAdd} onQty={onQty} />
+            <AddControl unit={u} line={line} busy={busy} disabled={locked} onAdd={sizes ? onChooseSize! : onAdd} onQty={onQty} />
           </View>
         )}
       </View>
       <View style={styles.body}>
-        <View style={styles.packPill}>
-          <Text style={styles.packText} numberOfLines={1}>
-            {packName(u.name, u.pieces_per_unit)}
-          </Text>
+        <View style={styles.pillRow}>
+          <View style={[styles.packPill, sizes > 0 && { flexShrink: 1 }]}>
+            <Text style={styles.packText} numberOfLines={1}>
+              {sizes && p.variant_label ? p.variant_label : packName(u.name, u.pieces_per_unit)}
+            </Text>
+          </View>
+          {sizes > 0 && (
+            <Pressable onPress={onChooseSize} hitSlop={6} style={styles.sizesChip} accessibilityLabel={`${sizes} sizes, choose one`}>
+              <Text style={styles.sizesText}>{sizes} sizes</Text>
+              <Ionicons name="chevron-down" size={12} color={colors.primary} />
+            </Pressable>
+          )}
         </View>
         <Text style={styles.name} numberOfLines={2}>
           {p.name}
@@ -199,6 +211,9 @@ const styles = StyleSheet.create({
   outText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   addSpot: { position: 'absolute', right: 6, bottom: -14 },
   body: { paddingHorizontal: 4, paddingTop: 20, paddingBottom: 4 },
+  pillRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  sizesChip: { flexDirection: 'row', alignItems: 'center', gap: 2, borderRadius: 5, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 5, paddingVertical: 1 },
+  sizesText: { fontSize: 11, fontWeight: '800', color: colors.primary },
   packPill: { alignSelf: 'flex-start', backgroundColor: '#F1F3F5', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
   packText: { fontSize: 11, fontWeight: '600', color: colors.muted },
   name: { fontSize: 13.5, fontWeight: '600', color: colors.text, minHeight: 36, lineHeight: 18, marginTop: 6 },

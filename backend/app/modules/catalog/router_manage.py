@@ -9,7 +9,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
-from app.core.media import MAX_UPLOAD_BYTES, delete_image, delete_product_image, save_image, save_product_image, thumb_url
+from app.core.media import (
+    MAX_UPLOAD_BYTES,
+    copy_product_image,
+    delete_image,
+    delete_product_image,
+    save_image,
+    save_product_image,
+    thumb_url,
+)
 from app.core.tenancy import STAFF_ROLES, TenantContext, require_roles
 from app.modules.catalog import excel, related
 from app.modules.catalog.models import MAX_CATEGORY_DEPTH, AttributeDefinition, Category, Product, ProductUnit
@@ -17,10 +25,12 @@ from app.modules.catalog.queries import (
     apply_search,
     count,
     get_product_or_404,
+    manage_sizes,
     product_out,
     unit_out,
 )
 from app.modules.catalog.schemas import (
+    AddSizeIn,
     AttributeIn,
     AttributeOut,
     AttributeUpdate,
@@ -32,6 +42,7 @@ from app.modules.catalog.schemas import (
     ProductOut,
     ProductPage,
     ProductUpdate,
+    SizeGroupIn,
     UnitIn,
     UnitOut,
     UnitUpdate,
@@ -335,6 +346,7 @@ async def create_product(body: ProductIn, ctx: TenantContext = Depends(_staff), 
     attrs = validate_attributes(await effective_attributes(db, ctx.tenant_id, body.category_id), body.attributes)
     data = body.model_dump(exclude={"units", "attributes", "opening_stock_pieces"})
     data["sku"] = (data["sku"] or "").strip() or None
+    data["variant_label"] = (data["variant_label"] or "").strip() or None
     product = Product(tenant_id=ctx.tenant_id, attributes=attrs, **data)
     product.units = [ProductUnit(tenant_id=ctx.tenant_id, **u.model_dump()) for u in body.units]
     _ensure_one_default(product.units)
@@ -358,8 +370,14 @@ async def create_product(body: ProductIn, ctx: TenantContext = Depends(_staff), 
 @router.get("/t/{tenant_id}/products/{product_id}", response_model=ProductOut)
 async def get_product(product_id: uuid.UUID, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
     product = await get_product_or_404(db, ctx.tenant_id, product_id)
+    return await _product_with_sizes(db, product)
+
+
+async def _product_with_sizes(db: AsyncSession, product: Product) -> ProductOut:
     stock = await stock_map(db, [product.id])
-    return product_out(product, stock.get(product.id, 0))
+    out = product_out(product, stock.get(product.id, 0))
+    out.sizes = await manage_sizes(db, product)
+    return out
 
 
 @router.put("/t/{tenant_id}/products/{product_id}", response_model=ProductOut)
@@ -368,7 +386,7 @@ async def update_product(
 ):
     product = await get_product_or_404(db, ctx.tenant_id, product_id)
     data = body.model_dump(exclude_unset=True)
-    nullable = {"brand", "description", "search_aliases", "sku", "mrp"}
+    nullable = {"brand", "description", "search_aliases", "sku", "mrp", "variant_label"}
     data = {k: v for k, v in data.items() if v is not None or k in nullable}
 
     category_id = data.get("category_id", product.category_id)
@@ -379,6 +397,8 @@ async def update_product(
         data["attributes"] = validate_attributes(await effective_attributes(db, ctx.tenant_id, category_id), values)
     if "sku" in data:
         data["sku"] = (data["sku"] or "").strip() or None
+    if "variant_label" in data:
+        data["variant_label"] = (data["variant_label"] or "").strip() or None
 
     for field, value in data.items():
         setattr(product, field, value)
@@ -398,12 +418,106 @@ async def delete_product(product_id: uuid.UUID, ctx: TenantContext = Depends(_st
     product = await get_product_or_404(db, ctx.tenant_id, product_id)
     if await db.scalar(select(OrderItem.id).where(OrderItem.product_id == product.id).limit(1)):
         raise HTTPException(409, "This product is in past orders, so it can't be deleted. Set its status to 'hidden' instead.")
-    images = list(product.images)
+    images, group = list(product.images), product.variant_group_id
     await db.delete(product)
+    await db.flush()
+    await _dissolve_if_alone(db, ctx.tenant_id, group)
     await db.commit()
     for url in images:
         delete_product_image(ctx.tenant_id, url)
     return Response(status_code=204)
+
+
+# ---------- sizes (variants): Rice 1 kg / 5 kg as one product for shops ----------
+
+
+async def _dissolve_if_alone(db: AsyncSession, tenant_id: uuid.UUID, group_id: uuid.UUID | None) -> None:
+    """A group with a single product left is no group: clear it so the product looks normal again."""
+    if group_id is None:
+        return
+    members = (
+        await db.scalars(select(Product).where(Product.tenant_id == tenant_id, Product.variant_group_id == group_id))
+    ).all()
+    if len(members) == 1:
+        members[0].variant_group_id = None
+
+
+@router.post("/t/{tenant_id}/products/{product_id}/sizes", response_model=ProductOut, status_code=201)
+async def add_size(
+    product_id: uuid.UUID, body: AddSizeIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    """Make another size of this product (e.g. 5 kg next to 1 kg). Category, brand, description, search words,
+    features and photos are copied; name, label, packs, prices and stock are the new size's own."""
+    source = await get_product_or_404(db, ctx.tenant_id, product_id)
+    if source.variant_group_id is None:
+        source.variant_group_id = uuid.uuid4()
+    if body.source_label is not None and body.source_label.strip():
+        source.variant_label = body.source_label.strip()
+    attrs = validate_attributes(
+        await effective_attributes(db, ctx.tenant_id, source.category_id), {**source.attributes, **(body.attributes or {})}
+    )
+    images = [u for u in (copy_product_image(ctx.tenant_id, url) for url in source.images) if u] if body.copy_photos else []
+    product = Product(
+        tenant_id=ctx.tenant_id,
+        category_id=source.category_id,
+        name=body.name.strip(),
+        brand=source.brand,
+        description=source.description,
+        search_aliases=source.search_aliases,
+        sku=(body.sku or "").strip() or None,
+        mrp=body.mrp,
+        attributes=attrs,
+        images=images,
+        status="active",
+        variant_group_id=source.variant_group_id,
+        variant_label=body.variant_label.strip(),
+    )
+    product.units = [ProductUnit(tenant_id=ctx.tenant_id, **u.model_dump()) for u in body.units]
+    _ensure_one_default(product.units)
+    db.add(product)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        for url in images:
+            if url not in source.images:
+                delete_product_image(ctx.tenant_id, url)
+        raise _sku_conflict() from None
+    db.add(Stock(product_id=product.id, tenant_id=ctx.tenant_id, qty_pieces=0))
+    await db.flush()
+    if body.opening_stock_pieces:
+        await change_stock(
+            db, tenant_id=ctx.tenant_id, product_id=product.id, change_pieces=body.opening_stock_pieces,
+            reason="opening", user_id=ctx.user.id, note="Opening stock",
+        )
+    await db.commit()
+    product = await get_product_or_404(db, ctx.tenant_id, product.id)
+    return await _product_with_sizes(db, product)
+
+
+@router.put("/t/{tenant_id}/products/{product_id}/size-group", response_model=ProductOut)
+async def set_size_group(
+    product_id: uuid.UUID, body: SizeGroupIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)
+):
+    """Link an existing product as a size of another (join_product_id), or take it out of its group (null).
+    Useful when 1 kg and 5 kg were already added as separate products."""
+    product = await get_product_or_404(db, ctx.tenant_id, product_id)
+    old_group = product.variant_group_id
+    if body.join_product_id is None:
+        product.variant_group_id = None
+    else:
+        if body.join_product_id == product.id:
+            raise HTTPException(422, "Pick a different product")
+        other = await get_product_or_404(db, ctx.tenant_id, body.join_product_id)
+        if other.variant_group_id is None:
+            other.variant_group_id = uuid.uuid4()
+        product.variant_group_id = other.variant_group_id
+    await db.flush()
+    if old_group != product.variant_group_id:
+        await _dissolve_if_alone(db, ctx.tenant_id, old_group)
+    await db.commit()
+    product = await get_product_or_404(db, ctx.tenant_id, product.id)
+    return await _product_with_sizes(db, product)
 
 
 # ---------- photos ----------
