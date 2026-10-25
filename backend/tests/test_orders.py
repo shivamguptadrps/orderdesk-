@@ -437,3 +437,9 @@ async def test_order_keeps_shop_map_pin(client, o):
     await client.put("/shops/me", json={"lat": 25.0, "lng": 80.0}, headers=o["shop"])
     again = (await client.get(f"{o['t']}/orders/{order['id']}", headers=o["owner"])).json()
     assert again["shop_lat"] == 26.449923
+
+
+async def test_cart_lines_carry_mrp_for_savings(client, o):
+    cart = (await add(client, o, o["bag"], 2)).json()
+    line = cart["items"][0]
+    assert line["mrp"] == 50.0  # per piece; a bag of 30 at 1290 vs MRP 1500 saves 210 a bag

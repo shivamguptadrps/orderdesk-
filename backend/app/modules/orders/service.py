@@ -124,6 +124,7 @@ def cart_out(cart: Cart | None, lines: list[Line]) -> CartOut:
                 product_name=p.name if p else "Removed product",
                 brand=p.brand if p else None,
                 image=thumb_url(p.images[0]) if p and p.images else None,
+                mrp=p.mrp if p else None,
                 unit_name=u.name if u else "",
                 pieces_per_unit=u.pieces_per_unit if u else 0,
                 price=price,

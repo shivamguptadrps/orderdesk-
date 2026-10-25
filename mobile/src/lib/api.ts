@@ -1,4 +1,4 @@
-import { File, UploadType } from 'expo-file-system';
+import { File, Paths, UploadType } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 
@@ -140,7 +140,15 @@ export async function uploadImage<T>(path: string, photo: PhotoAsset): Promise<T
     try {
       uri = await shrink(photo);
     } catch {
-      uri = photo.uri; // could not resize; send the original
+      // Could not resize: copy the picked file into the app's own cache first, so the uploader
+      // gets a plain local file (Android can hand out "content://" links it can't read directly).
+      try {
+        const copy = new File(Paths.cache, `upload-${Date.now()}.jpg`);
+        new File(photo.uri).copy(copy);
+        uri = copy.uri;
+      } catch {
+        uri = photo.uri;
+      }
     }
     send = () =>
       new File(uri).upload(url, {

@@ -32,6 +32,7 @@ class CartLineOut(BaseModel):
     unit_name: str
     pieces_per_unit: int
     price: Money
+    mrp: Money | None = None  # MRP per piece (display only): lets the app show "you save"
     qty: int
     line_total: Money
     min_qty: int

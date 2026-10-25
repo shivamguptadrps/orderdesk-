@@ -11,7 +11,7 @@ import { Banner, Button, Empty, ErrorView, Loading, SkeletonList } from '@/compo
 import { api, errorText } from '@/lib/api';
 import { useCartActions } from '@/lib/cartActions';
 import { cartKey, useCart, useWorkspace, type Workspace } from '@/lib/data';
-import { inr, mediaUrl, packName } from '@/lib/format';
+import { cartSavings, inr, mediaUrl, packName } from '@/lib/format';
 import { shopParam } from '@/lib/session';
 import { colors, radius, space } from '@/lib/theme';
 import type { Cart, CartLine, Shop } from '@/lib/types';
@@ -110,6 +110,15 @@ function CartView({ ws, shop }: { ws: Workspace; shop: Shop | null }) {
 
         {problems > 0 && <Banner kind="error" text={`${problems} item${problems > 1 ? 's need' : ' needs'} attention before you can order.`} />}
 
+        {cartSavings(data.items) > 0 && (
+          <View style={styles.saving}>
+            <Ionicons name="pricetags" size={18} color={colors.ok} />
+            <Text style={styles.savingText}>
+              You&apos;re saving <Text style={{ fontWeight: '900' }}>{inr(cartSavings(data.items))}</Text> on MRP with this order
+            </Text>
+          </View>
+        )}
+
         <View style={styles.card}>
           <View style={styles.cardHead}>
             <Text style={styles.cardTitle}>From {ws.name}</Text>
@@ -155,6 +164,7 @@ function CartView({ ws, shop }: { ws: Workspace; shop: Shop | null }) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Bill details</Text>
           <BillRow label={`Items total (${data.item_count})`} value={inr(data.total)} />
+          {cartSavings(data.items) > 0 && <BillRow label="You save on MRP" value={`− ${inr(cartSavings(data.items))}`} good />}
           <BillRow label="Delivery" value="As agreed with distributor" muted />
           <View style={styles.billDivider} />
           <BillRow label="To pay" value={inr(data.total)} strong />
@@ -185,11 +195,11 @@ function CartView({ ws, shop }: { ws: Workspace; shop: Shop | null }) {
   );
 }
 
-function BillRow({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
+function BillRow({ label, value, strong, muted, good }: { label: string; value: string; strong?: boolean; muted?: boolean; good?: boolean }) {
   return (
     <View style={styles.billRow}>
-      <Text style={[styles.billLabel, strong && styles.billStrong]}>{label}</Text>
-      <Text style={[styles.billValue, strong && styles.billStrong, muted && { color: colors.muted, fontWeight: '400' }]}>{value}</Text>
+      <Text style={[styles.billLabel, strong && styles.billStrong, good && { color: colors.ok }]}>{label}</Text>
+      <Text style={[styles.billValue, strong && styles.billStrong, muted && { color: colors.muted, fontWeight: '400' }, good && { color: colors.ok, fontWeight: '800' }]}>{value}</Text>
     </View>
   );
 }
@@ -303,6 +313,8 @@ const styles = StyleSheet.create({
   billDivider: { height: 1, backgroundColor: colors.border, marginTop: space.md, marginBottom: 2, borderStyle: 'dashed' },
   payNote: { flexDirection: 'row', gap: 6, marginTop: space.md, backgroundColor: colors.bg, borderRadius: radius.sm, padding: space.sm },
   payNoteText: { flex: 1, fontSize: 12, color: colors.muted, lineHeight: 17 },
+  saving: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: colors.okSoft, borderRadius: radius.md, padding: space.md, borderWidth: 1, borderColor: '#A6E3B5' },
+  savingText: { flex: 1, color: colors.ok, fontSize: 14, fontWeight: '600' },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

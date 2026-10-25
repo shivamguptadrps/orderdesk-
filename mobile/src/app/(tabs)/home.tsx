@@ -267,7 +267,7 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
           line={lines.get(item.default_unit.id)}
           busy={actions.busy === item.id}
           onOpen={() => router.push(`/product/${item.id}`)}
-          onAdd={() => actions.add(item.id, item.default_unit)}
+          onAdd={() => actions.add(item.id, item.default_unit, undefined, item.name)}
           onQty={(qty) => {
             const line = lines.get(item.default_unit.id);
             if (line) actions.setQty(item.id, line, qty);

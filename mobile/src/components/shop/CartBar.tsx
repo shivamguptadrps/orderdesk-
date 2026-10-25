@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useCart, type Workspace } from '@/lib/data';
 import { inr } from '@/lib/format';
@@ -11,9 +12,20 @@ export function CartBar({ ws }: { ws: Workspace }) {
   const router = useRouter();
   const cart = useCart(ws);
   const c = cart.data;
+  const count = c?.item_count ?? 0;
+  const [bump] = useState(() => new Animated.Value(1));
+  const last = useRef(count);
+  useEffect(() => {
+    // A little bounce whenever the number of items goes up.
+    if (count > last.current) {
+      bump.setValue(0.92);
+      Animated.spring(bump, { toValue: 1, friction: 3, tension: 160, useNativeDriver: true }).start();
+    }
+    last.current = count;
+  }, [count, bump]);
   if (!c || !c.items.length) return null;
   return (
-    <View pointerEvents="box-none" style={styles.wrap}>
+    <Animated.View pointerEvents="box-none" style={[styles.wrap, { transform: [{ scale: bump }] }]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`View cart, ${c.item_count} items, ${inr(c.total)}`}
@@ -31,7 +43,7 @@ export function CartBar({ ws }: { ws: Workspace }) {
         <Text style={styles.cta}>View cart</Text>
         <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 

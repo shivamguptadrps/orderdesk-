@@ -12,6 +12,8 @@ import { useManage, useRefreshManage } from '@/lib/manage';
 import { colors, radius, space } from '@/lib/theme';
 import type { Order, OrderItem } from '@/lib/types';
 import { mapsUrl } from '@/components/LocationField';
+import { useToast } from '@/components/Toast';
+import { feedback } from '@/lib/feedback';
 
 type ShortLine = { item_id: string; product_name: string; unit_name: string; qty_wanted: number; qty_possible: number };
 
@@ -34,14 +36,29 @@ function OrderView({ id, base }: { id: string; base: string }) {
   const act = useMutation({
     mutationFn: ({ action, body }: { action: string; body: unknown }) =>
       api<Order>(`${base}/orders/${id}/${action}`, { method: 'POST', body }),
-    onSuccess: async () => {
+    onSuccess: async (updated, { action }) => {
       setEdits({});
       setNote('');
       setRejecting(false);
       setShort(null);
+      const done: Record<string, string> = {
+        approve: 'approved',
+        dispatch: 'dispatched · stock updated',
+        deliver: 'delivered',
+        reject: 'rejected',
+        cancel: 'cancelled',
+      };
+      if (action === 'reject' || action === 'cancel') feedback.remove();
+      else feedback.success();
+      useToast.getState().show({
+        text: `Order #${updated.order_no} ${done[action] ?? 'updated'}`,
+        icon: action === 'reject' || action === 'cancel' ? 'close-circle' : 'checkmark-circle',
+        tone: action === 'reject' || action === 'cancel' ? 'info' : 'ok',
+      });
       await refresh();
     },
     onError: (err) => {
+      feedback.error();
       const detail = err instanceof ApiError ? (err.detail as { short?: ShortLine[] } | undefined) : undefined;
       if (detail?.short?.length) {
         // Not enough stock: reduce those lines to what can go, and let the user dispatch again.

@@ -100,3 +100,8 @@ export function shortInr(v: number): string {
 export function gridColumns(width: number): number {
   return width >= 860 ? 4 : width >= 560 ? 3 : 2;
 }
+
+/** How much the cart saves against MRP (MRP is per piece). 0 when products have no MRP. */
+export function cartSavings(lines: { mrp?: number | null; pieces_per_unit: number; qty: number; line_total: number }[]): number {
+  return Math.round(lines.reduce((sum, l) => sum + (l.mrp ? Math.max(0, l.mrp * l.pieces_per_unit * l.qty - l.line_total) : 0), 0));
+}

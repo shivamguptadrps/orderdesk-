@@ -80,6 +80,7 @@ export type CartLine = {
   unit_name: string;
   pieces_per_unit: number;
   price: number;
+  mrp?: number | null;
   qty: number;
   line_total: number;
   min_qty: number;

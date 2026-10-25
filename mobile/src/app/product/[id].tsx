@@ -73,7 +73,7 @@ function Product({ id, ws }: { id: string; ws: Workspace }) {
     if (inCart) return router.navigate('/cart');
     if (qtyError(qty, unit)) return;
     if (line) actions.setQty(unit.id, line, qty);
-    else actions.add(unit.id, unit, qty);
+    else actions.add(unit.id, unit, qty, p.name);
   }
 
   return (

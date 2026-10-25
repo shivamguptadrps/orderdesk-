@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { NotificationStatus } from '@/components/NotificationStatus';
+import { SoundToggle } from '@/components/SoundToggle';
 import { BrandHeader, cardStyle, IconBubble, SectionHeader, ShortcutTile, type Tone } from '@/components/manage/kit';
 import { API_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -110,6 +111,8 @@ export default function MoreScreen() {
 
         <View style={{ height: space.md }} />
         <NotificationStatus />
+        <View style={{ height: space.md }} />
+        <SoundToggle />
 
         {(others.length > 0 || !ws.me.data?.shop) && (
           <>

@@ -98,7 +98,7 @@ export function ProductStrip({
                   line={line}
                   busy={actions.busy === `strip-${p.id}`}
                   disabled={needsShop || !u.in_stock}
-                  onAdd={() => actions.add(`strip-${p.id}`, u)}
+                  onAdd={() => actions.add(`strip-${p.id}`, u, undefined, p.name)}
                   onQty={(qty) => line && actions.setQty(`strip-${p.id}`, line, qty)}
                 />
               </View>

@@ -4,7 +4,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useToast } from '@/components/Toast';
 import { Button } from '@/components/ui';
+import { feedback } from '@/lib/feedback';
 import { api, errorText, uploadImage } from '@/lib/api';
 import { mediaUrl } from '@/lib/format';
 import { colors, radius, space } from '@/lib/theme';
@@ -25,14 +27,18 @@ export function PhotosSection({ product, base, onChanged }: { product: ManagePro
           return;
         }
       }
-      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8 };
+      // Square crop: the same path as banners/logo (which upload fine on Android) and tidy square product cards.
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.85, allowsEditing: true, aspect: [1, 1], exif: false };
       const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
       if (result.canceled || !result.assets?.length) return;
       setBusy(true);
       const asset = result.assets[0];
       await uploadImage(url, asset);
+      feedback.success();
+      useToast.getState().show({ text: 'Photo added', icon: 'image' });
       onChanged();
     } catch (err) {
+      feedback.error();
       Alert.alert("Couldn't add photo", errorText(err));
     } finally {
       setBusy(false);

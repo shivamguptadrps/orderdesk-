@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { PushHandler } from '@/components/PushHandler';
+import { ToastHost } from '@/components/Toast';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useSession } from '@/lib/session';
@@ -80,7 +81,9 @@ export default function RootLayout() {
         <Stack.Screen name="manage/banners" options={{ title: 'Home banners' }} />
         <Stack.Screen name="health" options={{ title: 'Server connection' }} />
         <Stack.Screen name="admin/index" options={{ title: 'Platform admin' }} />
+        <Stack.Screen name="order-placed" options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
+      <ToastHost />
       </View>
       </View>
     </QueryClientProvider>

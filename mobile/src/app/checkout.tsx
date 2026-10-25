@@ -8,7 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Empty, ErrorView, Loading } from '@/components/ui';
 import { ApiError, api, errorText } from '@/lib/api';
 import { cartKey, useCart, useRefreshOrders, useWorkspace, type Workspace } from '@/lib/data';
-import { inr, mediaUrl, packName } from '@/lib/format';
+import { feedback } from '@/lib/feedback';
+import { cartSavings, inr, mediaUrl, packName } from '@/lib/format';
 import { shopParam } from '@/lib/session';
 import { colors, radius, space } from '@/lib/theme';
 import type { Order, Shop } from '@/lib/types';
@@ -32,11 +33,16 @@ function Review({ ws, shop }: { ws: Workspace; shop: Shop | null }) {
     mutationFn: () =>
       api<Order>(`${base}/orders`, { method: 'POST', body: { expected_total: cart.data!.total }, query: shopParam(ws.mode, ws.agentShop) }),
     onSuccess: async (order) => {
+      const saved = cartSavings(cart.data?.items ?? []);
       await refreshOrders();
       router.dismissAll();
-      router.push({ pathname: '/order/[id]', params: { id: order.id, tenant: order.tenant_id, placed: '1' } });
+      router.push({
+        pathname: '/order-placed',
+        params: { id: order.id, tenant: order.tenant_id, no: String(order.order_no), total: String(order.items_total), saved: String(saved), from: ws.name },
+      });
     },
     onError: async (err) => {
+      feedback.error();
       await qc.invalidateQueries({ queryKey: cartKey(ws) });
       const changed = err instanceof ApiError && err.status === 409;
       Alert.alert(changed ? 'Please check again' : "Couldn't place order", errorText(err));
@@ -139,6 +145,12 @@ function Review({ ws, shop }: { ws: Workspace; shop: Shop | null }) {
             <Text style={styles.billLabel}>Payment</Text>
             <Text style={[styles.billValue, { color: colors.muted, fontWeight: '400' }]}>Offline, to the distributor</Text>
           </View>
+          {cartSavings(c.items) > 0 && (
+            <View style={styles.billRow}>
+              <Text style={[styles.billLabel, { color: '#1A7F37' }]}>You save on MRP</Text>
+              <Text style={[styles.billValue, { color: '#1A7F37', fontWeight: '800' }]}>− {inr(cartSavings(c.items))}</Text>
+            </View>
+          )}
           <View style={styles.divider} />
           <View style={styles.billRow}>
             <Text style={styles.grandLabel}>Order total</Text>
