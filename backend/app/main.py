@@ -77,7 +77,17 @@ app.include_router(notifications_router)
 app.include_router(reports_router)
 app.include_router(brands_router)
 app.include_router(platform_router)
-app.mount(settings.media_url_prefix, StaticFiles(directory=media_root()), name="media")
+class _MediaFiles(StaticFiles):
+    """Photos get a new random name whenever they change, so phones and browsers can keep them for a year."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
+app.mount(settings.media_url_prefix, _MediaFiles(directory=media_root()), name="media")
 
 
 IMPORT_PAGE = Path(__file__).parent / "assets" / "import.html"

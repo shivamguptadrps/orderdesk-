@@ -25,7 +25,8 @@ def _text(key, label, required=False, is_filter=False):
 
 
 # Sizes are numbers with a unit so shops can filter and sort by them.
-_KG = _num("weight_kg", "Pack weight", "kg", required=True)
+_KG = _num("weight_kg", "Pack weight", "kg")  # optional: names from billing software often leave the size out
+_KG_REQ = _num("weight_kg", "Pack weight", "kg", required=True)
 _G = _num("weight_g", "Pack weight", "g")
 _ML = _num("volume_ml", "Volume", "ml")
 
@@ -43,13 +44,13 @@ FMCG_TEMPLATE = [
         _c("Dal / दाल", "daal, dal, pulses, toor, arhar, moong, chana, urad, masoor, rajma, दाल, अरहर, मूंग, चना, उड़द, मसूर, राजमा",
            [_KG, _select("dal_type", "Type", ["Toor / Arhar", "Moong", "Chana", "Urad", "Masoor", "Rajma", "Kabuli chana", "Other"])]),
         _c("Sugar / चीनी", "cheeni, chini, shakkar, sugar, चीनी, शक्कर",
-           [_KG, _select("grain", "Grain", ["Fine", "Medium", "Bold"])]),
+           [_KG_REQ, _select("grain", "Grain", ["Fine", "Medium", "Bold"])]),
         _c("Poha & Daliya / पोहा", "poha, chivda, chura, daliya, dalia, पोहा, चिवड़ा, दलिया", [_KG]),
         _c("Salt & Gud / नमक-गुड़", "namak, salt, gud, gur, jaggery, नमक, गुड़", [_KG]),
     ]),
     _c("Oil & Ghee / तेल-घी", "tel, oil, ghee, तेल, घी", children=[
         _c("Oil / तेल", "tel, refined, sarson, mustard, soyabean, sunflower, तेल, सरसों, रिफाइंड", [
-            _num("volume_l", "Volume", "L", required=True),
+            _num("volume_l", "Volume", "L"),
             _select("oil_type", "Oil type", ["Mustard", "Sunflower", "Soybean", "Groundnut", "Rice bran", "Palm", "Other"]),
             _select("pack_type", "Pack", ["Pouch", "Bottle", "Jar", "Tin"]),
         ]),

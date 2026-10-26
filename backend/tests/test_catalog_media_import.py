@@ -275,3 +275,13 @@ async def test_category_photo_counts_and_order(client, cat):
     ]:
         assert (await getattr(client, method)(path, headers=cat["owner_b"], **kw)).status_code == 404
     assert (await client.delete(f"{t}/categories/{sugar_id}/image", headers=cat["shop"])).status_code == 403
+
+
+async def test_photos_are_cached_for_a_year(client, cat):
+    from tests.conftest import sugar
+    t, owner = f"/t/{cat['a'].id}", cat["owner"]
+    p = (await client.post(f"{t}/products", json=sugar(cat["ids"]["Sugar"]), headers=owner)).json()
+    res = await client.post(f"{t}/products/{p['id']}/images", files={"file": ("p.png", _png(), "image/png")}, headers=owner)
+    url = res.json()["images"][0]
+    got = await client.get(url)
+    assert got.status_code == 200 and "immutable" in got.headers["cache-control"]
