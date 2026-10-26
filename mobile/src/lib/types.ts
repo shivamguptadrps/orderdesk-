@@ -211,6 +211,7 @@ export type ManageProduct = {
   stock_pieces: number;
   variant_group_id?: string | null;
   variant_label?: string | null;
+  brand_id?: string | null;
   sizes?: SizeInfo[]; // other sizes in the group
 };
 
@@ -237,7 +238,11 @@ export type FlatCategory = {
   image_url?: string | null;
   sort_order?: number;
   product_count?: number;
+  aliases?: string | null; // other names search understands (Hindi, Hinglish)
 };
+
+export type BrandInfo = { id: string; name: string; aliases: string | null; product_count: number };
+export type ShopBrand = { id: string; name: string; product_count: number };
 
 export type TenantShop = AgentShop & { agent_user_id: string | null; joined_at: string; lat: number | null; lng: number | null };
 

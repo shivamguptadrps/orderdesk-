@@ -47,10 +47,10 @@ PRODUCTS = [
      {"weight_kg": 1, "variety": "Basmati"}, packs(("Packet", 1, 118, 2), ("Bale (20)", 20, 2300)), 400),
     ("Rice", "Sona Khet Sona Masoori Rice 10 kg", "Sona Khet", "DEMO-RICE-10", 690, "chawal, chaval, चावल, masoori",
      {"weight_kg": 10, "variety": "Sona Masoori"}, packs(("Bag", 1, 610),), 80),
-    ("Atta", "Chakki Ghar Whole Wheat Atta 5 kg", "Chakki Ghar", "DEMO-ATTA-5", 265, "aata, atta, gehu, गेहूं, आटा",
-     {"weight_kg": 5, "atta_type": "Whole wheat"}, packs(("Bag", 1, 238), ("Bale (4)", 4, 940)), 160),
-    ("Atta", "Chakki Ghar Besan 500 g", "Chakki Ghar", "DEMO-BESAN-05", 70, "besan, chana atta, बेसन",
-     {"weight_kg": 0.5, "atta_type": "Besan"}, packs(("Packet", 1, 58, 2), ("Box (24)", 24, 1350)), 480),
+    ("Atta & Flour", "Chakki Ghar Whole Wheat Atta 5 kg", "Chakki Ghar", "DEMO-ATTA-5", 265, "aata, atta, gehu, गेहूं, आटा",
+     {"weight_kg": 5, "flour_type": "Wheat atta"}, packs(("Bag", 1, 238), ("Bale (4)", 4, 940)), 160),
+    ("Atta & Flour", "Chakki Ghar Besan 500 g", "Chakki Ghar", "DEMO-BESAN-05", 70, "besan, chana atta, बेसन",
+     {"weight_kg": 0.5, "flour_type": "Besan"}, packs(("Packet", 1, 58, 2), ("Box (24)", 24, 1350)), 480),
     ("Oil", "Sarson Rani Mustard Oil 1 L", "Sarson Rani", "DEMO-OIL-MUS-1", 185, "sarson tel, sarso ka tel, सरसों तेल",
      {"volume_l": 1, "oil_type": "Mustard", "pack_type": "Bottle"}, packs(("Bottle", 1, 164), ("Carton (12)", 12, 1920)), 240),
     ("Oil", "Surajmukhi Sunflower Oil 1 L Pouch", "Surajmukhi", "DEMO-OIL-SUN-1", 160, "refined, sunflower tel, रिफाइंड",
@@ -67,18 +67,18 @@ PRODUCTS = [
      {"weight_g": 100, "flavour": "Chocolate cream"}, packs(("Packet", 1, 17, 6, 6), ("Carton (60)", 60, 960)), 600),
     ("Biscuits", "Biskit Bazaar Marie Biscuits 200 g", "Biskit Bazaar", "DEMO-BIS-MAR", 35, "biscuit, biskut, marie, मैरी, बिस्कुट",
      {"weight_g": 200, "flavour": "Marie"}, packs(("Packet", 1, 30, 4), ("Carton (36)", 36, 1020)), 360),
-    ("Beverages", "Chai Bahar Tea 250 g", "Chai Bahar", "DEMO-TEA-250", 145, "chai, chai patti, patti, चाय",
-     {"volume_ml": None, "flavour": "Strong leaf"}, packs(("Packet", 1, 126, 2), ("Box (20)", 20, 2460)), 300),
-    ("Beverages", "Thanda Fizz Cola 750 ml", "Thanda Fizz", "DEMO-COLA-750", 40, "cold drink, thanda, soda, कोल्ड ड्रिंक",
+    ("Tea & Coffee", "Chai Bahar Tea 250 g", "Chai Bahar", "DEMO-TEA-250", 145, "chai, chai patti, patti, चाय",
+     {"weight_g": 250}, packs(("Packet", 1, 126, 2), ("Box (20)", 20, 2460)), 300),
+    ("Cold drinks", "Thanda Fizz Cola 750 ml", "Thanda Fizz", "DEMO-COLA-750", 40, "cold drink, thanda, soda, कोल्ड ड्रिंक",
      {"volume_ml": 750, "flavour": "Cola"}, packs(("Bottle", 1, 34, 6, 6), ("Crate (24)", 24, 780)), 480),
-    ("Personal care", "Neem Fresh Bathing Soap 100 g", "Neem Fresh", "DEMO-SOAP-100", 35, "sabun, saboon, soap, साबुन",
-     {"size": "100 g"}, packs(("Piece", 1, 29, 4), ("Pack of 4", 4, 112), ("Carton (72)", 72, 1940)), 1440),
-    ("Personal care", "Neem Fresh Anti-Dandruff Shampoo 180 ml", "Neem Fresh", "DEMO-SHAM-180", 150, "shampoo, sampoo, शैम्पू",
-     {"size": "180 ml"}, packs(("Bottle", 1, 128), ("Carton (24)", 24, 2950)), 96),
-    ("Home care", "Chamak Detergent Powder 1 kg", "Chamak", "DEMO-DET-1", 110, "surf, sarf, washing powder, कपड़े धोने का पाउडर",
-     {"size": "1 kg"}, packs(("Packet", 1, 94), ("Bag (20)", 20, 1820)), 300),
-    ("Home care", "Bartan Saaf Dishwash Bar 200 g", "Bartan Saaf", "DEMO-DISH-200", 20, "bartan, vim, dishwash, बर्तन",
-     {"size": "200 g"}, packs(("Piece", 1, 17, 6, 6), ("Box (60)", 60, 960)), 1200),
+    ("Soap", "Neem Fresh Bathing Soap 100 g", "Neem Fresh", "DEMO-SOAP-100", 35, "sabun, saboon, soap, साबुन",
+     {"weight_g": 100}, packs(("Piece", 1, 29, 4), ("Pack of 4", 4, 112), ("Carton (72)", 72, 1940)), 1440),
+    ("Hair", "Neem Fresh Anti-Dandruff Shampoo 180 ml", "Neem Fresh", "DEMO-SHAM-180", 150, "shampoo, sampoo, शैम्पू",
+     {"volume_ml": 180}, packs(("Bottle", 1, 128), ("Carton (24)", 24, 2950)), 96),
+    ("Detergent", "Chamak Detergent Powder 1 kg", "Chamak", "DEMO-DET-1", 110, "surf, sarf, washing powder, कपड़े धोने का पाउडर",
+     {"weight_g": 1000}, packs(("Packet", 1, 94), ("Bag (20)", 20, 1820)), 300),
+    ("Dishwash", "Bartan Saaf Dishwash Bar 200 g", "Bartan Saaf", "DEMO-DISH-200", 20, "bartan, vim, dishwash, बर्तन",
+     {"weight_g": 200}, packs(("Piece", 1, 17, 6, 6), ("Box (60)", 60, 960)), 1200),
 ]
 
 # one colour per top category, so photos look different
@@ -123,7 +123,7 @@ async def main(join_code: str) -> None:
             select(TenantMember.user_id).where(TenantMember.tenant_id == tenant.id, TenantMember.role == "owner")
         )
         tree = await load_tree(db, tenant.id)
-        by_name = {c.name: c for c in tree.by_id.values()}
+        by_name = {c.name.split(" / ")[0]: c for c in tree.by_id.values()}  # "Rice" for "Rice / चावल"
         existing = set(await db.scalars(select(Product.sku).where(Product.tenant_id == tenant.id, Product.sku.is_not(None))))
         added = 0
         for cat_name, name, brand, sku, mrp, aliases, attrs, units, stock in PRODUCTS:

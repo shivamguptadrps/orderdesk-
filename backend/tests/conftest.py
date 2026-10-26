@@ -160,6 +160,7 @@ async def cat(client, login, make_tenant, make_shop):
     await client.post(f"/t/{a.id}/shops/{shop['id']}/approve", headers=owner)
     cats = (await client.get(f"/t/{a.id}/categories", headers=owner)).json()
     ids = {c["name"]: c["id"] for c in cats}
+    ids |= {c["name"].split(" / ")[0]: c["id"] for c in cats}  # "Sugar" for "Sugar / चीनी"
     return {"a": a, "b": b, "owner": owner, "owner_b": await login(CAT_OWNER_B), "shop": shop_headers, "ids": ids}
 
 

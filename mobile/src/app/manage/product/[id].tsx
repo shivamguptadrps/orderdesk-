@@ -6,6 +6,7 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, 
 import { CategoryPicker } from '@/components/manage/CategoryPicker';
 import { FeaturesEditor, featuresForApi, featuresFromApi, type FeatureValues } from '@/components/manage/FeaturesEditor';
 import { PhotosSection } from '@/components/manage/PhotosSection';
+import { BrandPicker } from '@/components/manage/BrandPicker';
 import { SizesSection } from '@/components/manage/SizesSection';
 import { RelatedSection } from '@/components/manage/RelatedSection';
 import { StockSection } from '@/components/manage/StockSection';
@@ -75,7 +76,6 @@ function Editor({
   const [form, setForm] = useState({
     category_id: product?.category_id ?? null,
     name: product?.name ?? '',
-    brand: product?.brand ?? '',
     search_aliases: product?.search_aliases ?? '',
     sku: product?.sku ?? '',
     mrp: product?.mrp != null ? String(product.mrp) : '',
@@ -83,6 +83,9 @@ function Editor({
     active: (product?.status ?? 'active') === 'active',
   });
   const [features, setFeatures] = useState<FeatureValues>(featuresFromApi(product?.attributes ?? {}));
+  const [brand, setBrand] = useState<{ id: string; name: string } | null>(
+    product?.brand ? { id: product.brand_id ?? '', name: product.brand } : null,
+  );
   const [units, setUnits] = useState<UnitDraft[]>([emptyUnit(true)]); // new products only
   const [opening, setOpening] = useState('');
   const [saving, setSaving] = useState(false);
@@ -101,7 +104,8 @@ function Editor({
     return {
       category_id: form.category_id,
       name: form.name.trim(),
-      brand: form.brand.trim() || null,
+      brand_id: brand?.id || null,
+      brand: brand?.name ?? null,
       search_aliases: form.search_aliases.trim() || null,
       sku: form.sku.trim() || null,
       mrp: mrp !== null && Number.isFinite(mrp) ? mrp : null,
@@ -181,7 +185,7 @@ function Editor({
           }}
         />
         <Field label="Product name *" value={form.name} onChangeText={set('name')} placeholder="e.g. Mithas Sugar 1 kg" />
-        <Field label="Brand" value={form.brand} onChangeText={set('brand')} />
+        <BrandPicker base={base} value={brand} onChange={setBrand} />
         <Field
           label="Search words"
           value={form.search_aliases}

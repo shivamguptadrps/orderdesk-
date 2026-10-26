@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProductStrip } from '@/components/ProductStrip';
@@ -21,7 +21,7 @@ import { isHex, shade } from '@/lib/color';
 import { useCart, useWorkspace, type Workspace } from '@/lib/data';
 import { gridColumns, mediaUrl, saving } from '@/lib/format';
 import { colors, radius, space } from '@/lib/theme';
-import type { Banner, CatalogCard, CategoryNode, Page } from '@/lib/types';
+import type { Banner, CatalogCard, CategoryNode, Page, ShopBrand } from '@/lib/types';
 
 export default function Home() {
   const ws = useWorkspace();
@@ -158,6 +158,7 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
   const base = `/t/${ws.tenantId}`;
   const categories = useQuery({ queryKey: ['categories', ws.tenantId], queryFn: () => api<CategoryNode[]>(`${base}/catalog/categories`) });
   const banners = useQuery({ queryKey: ['banners', ws.tenantId], queryFn: () => api<Banner[]>(`${base}/catalog/banners`) });
+  const brands = useQuery({ queryKey: ['shopBrands', ws.tenantId], queryFn: () => api<ShopBrand[]>(`${base}/catalog/brands`) });
   const products = useQuery({
     queryKey: ['products', ws.tenantId, null, q],
     queryFn: () => api<Page<CatalogCard>>(`${base}/catalog/products`, { query: { q, limit: 100, group_variants: true } }),
@@ -225,6 +226,35 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
               );
             })}
           </View>
+        </View>
+      )}
+
+      {(brands.data ?? []).length > 1 && (
+        <View style={styles.section}>
+          <SectionHead title="Shop by brand" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: space.lg }}>
+            {(brands.data ?? []).map((b, i) => {
+              const look = categoryLook(b.name, i + 3);
+              return (
+                <Pressable
+                  key={b.id}
+                  onPress={() => router.push({ pathname: '/brand/[id]', params: { id: b.id, name: b.name } })}
+                  style={({ pressed }) => [styles.brandChip, pressed && { opacity: 0.8 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${b.name}, ${b.product_count} products`}>
+                  <View style={[styles.brandDot, { backgroundColor: look.bg }]}>
+                    <Text style={[styles.brandLetter, { color: look.fg }]}>{b.name.slice(0, 1).toUpperCase()}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.brandName} numberOfLines={1}>
+                      {b.name}
+                    </Text>
+                    <Text style={styles.brandCount}>{b.product_count} items</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
       )}
 
@@ -296,6 +326,11 @@ function SectionHead({ title, right }: { title: string; right?: string }) {
 }
 
 const styles = StyleSheet.create({
+  brandChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderRadius: 999, paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderWidth: 1, borderColor: '#EEF0F3' },
+  brandDot: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  brandLetter: { fontSize: 15, fontWeight: '900' },
+  brandName: { fontSize: 14, fontWeight: '700', color: colors.text, maxWidth: 140 },
+  brandCount: { fontSize: 11, color: colors.muted },
   row: { flexDirection: 'row', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.sm },
   headerMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md },

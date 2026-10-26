@@ -150,7 +150,7 @@ async def test_import_dry_run_then_save(client, cat):
     content = _fill(await _template(client, cat), rows)
 
     res = await _import(client, cat, content, dry_run=True)
-    assert res.json() == {"dry_run": True, "created": 2, "updated": 0, "errors": [], "saved": False}
+    assert res.json() == {"dry_run": True, "created": 2, "updated": 0, "errors": [], "saved": False, "new_brands": ["Mithas"]}
     listed = (await client.get(f"/t/{cat['a'].id}/products", headers=cat["owner"])).json()
     assert listed["total"] == 0  # nothing saved on a dry run
 
@@ -249,23 +249,23 @@ async def test_category_photo_counts_and_order(client, cat):
     assert "/categories/" in res.json()["image_url"]
     # shops see it on the category tree
     tree = (await client.get(f"{t}/catalog/categories", headers=cat["shop"])).json()
-    staples = next(c for c in tree if c["name"] == "Staples")
-    assert next(c for c in staples["children"] if c["name"] == "Sugar")["image_url"] == res.json()["image_url"]
+    staples = next(c for c in tree if c["name"].startswith("Ration"))
+    assert next(c for c in staples["children"] if c["name"].startswith("Sugar"))["image_url"] == res.json()["image_url"]
     assert (await client.delete(f"{t}/categories/{sugar_id}/image", headers=owner)).json()["image_url"] is None
 
     # product counts
     await client.post(f"{t}/products", json=sugar(sugar_id), headers=owner)
-    cats = {c["name"]: c for c in (await client.get(f"{t}/categories", headers=owner)).json()}
+    cats = {c["name"].split(" / ")[0]: c for c in (await client.get(f"{t}/categories", headers=owner)).json()}
     assert cats["Sugar"]["product_count"] == 1 and cats["Rice"]["product_count"] == 0
 
     # reorder siblings
-    kids = [c["id"] for c in cats.values() if c["parent_id"] == cats["Staples"]["id"]]
+    kids = [c["id"] for c in cats.values() if c["parent_id"] == cats["Ration"]["id"]]
     res = await client.put(f"{t}/categories-order", json={"ids": list(reversed(kids))}, headers=owner)
     assert res.status_code == 200
-    order = [c["id"] for c in res.json() if c["parent_id"] == cats["Staples"]["id"]]
+    order = [c["id"] for c in res.json() if c["parent_id"] == cats["Ration"]["id"]]
     assert order == list(reversed(kids))
     # mixing parents is refused
-    assert (await client.put(f"{t}/categories-order", json={"ids": [cats["Staples"]["id"], sugar_id]}, headers=owner)).status_code == 422
+    assert (await client.put(f"{t}/categories-order", json={"ids": [cats["Ration"]["id"], sugar_id]}, headers=owner)).status_code == 422
 
     # other distributor and shops can't touch it
     for method, path, kw in [

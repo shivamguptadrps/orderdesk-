@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useToast } from '@/components/Toast';
 import { FeatureEditor } from '@/components/manage/FeatureEditor';
@@ -139,6 +139,9 @@ export default function CategoryScreen() {
         </View>
         <Text style={styles.small}>The photo shows on the shops&apos; home screen instead of the icon. Square photos look best.</Text>
 
+        <SectionHeader title="Other names for search" />
+        <AliasesEditor key={`${cat.id}-${cat.aliases ?? ''}`} base={base} categoryId={cat.id} initial={cat.aliases ?? ''} onSaved={refresh} />
+
         <SectionHeader title="Product features" />
         <Text style={styles.small}>Every product in {cat.name} asks for these details. Shops can filter by the ones marked “Filter”.</Text>
         <View style={{ gap: space.sm, marginTop: space.md }}>
@@ -260,6 +263,7 @@ export default function CategoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  aliasInput: { minHeight: 64, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: space.md, marginVertical: space.sm, fontSize: 15, color: colors.text, textAlignVertical: 'top' },
   hero: { flexDirection: 'row', gap: space.lg, padding: space.lg, alignItems: 'center' },
   photo: { width: 84, height: 84, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   camera: { position: 'absolute', right: 4, bottom: 4, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
@@ -279,3 +283,35 @@ const styles = StyleSheet.create({
   subName: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
   border: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
 });
+
+/** Hindi / Hinglish / common words for this category: "chawal, चावल, basmati". Search uses them for every product inside. */
+function AliasesEditor({ base, categoryId, initial, onSaved }: { base: string; categoryId: string; initial: string; onSaved: () => Promise<unknown> }) {
+  const [value, setValue] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    try {
+      await api(`${base}/categories/${categoryId}`, { method: 'PUT', body: { aliases: value.trim() || null } });
+      await onSaved();
+      useToast.getState().show({ text: 'Search words saved' });
+    } catch (err) {
+      Alert.alert("Couldn't save", errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <View style={[cardStyle, { padding: space.md }]}>
+      <Text style={styles.small}>Shops can type any of these to find every product in this category, in Hindi, Hinglish or English. Separate with commas.</Text>
+      <TextInput
+        value={value}
+        onChangeText={setValue}
+        placeholder="chawal, चावल, basmati"
+        placeholderTextColor={colors.faint}
+        multiline
+        style={styles.aliasInput}
+      />
+      <Button title="Save search words" variant="secondary" onPress={save} loading={busy} disabled={value.trim() === initial.trim()} />
+    </View>
+  );
+}

@@ -98,6 +98,7 @@ async def catalog_products(
     category_id: uuid.UUID | None = None,
     q: str | None = Query(default=None, max_length=100, description="Search in Hindi, English or Hinglish"),
     brand: str | None = None,
+    brand_id: uuid.UUID | None = None,
     filters: str | None = Query(default=None, description='JSON, e.g. {"grain": "Medium", "weight_kg": [1, 5]}'),
     in_stock_only: bool = False,
     group_variants: bool = Query(default=False, description="One card per product with sizes (newer apps); old apps get every size"),
@@ -114,10 +115,12 @@ async def catalog_products(
         query = query.where(Product.category_id.in_(tree.subtree(category_id)))
     if brand:
         query = query.where(func.lower(Product.brand) == brand.strip().lower())
+    if brand_id:
+        query = query.where(Product.brand_id == brand_id)
     query = apply_attribute_filters(query, parse_filters(filters))
     if in_stock_only:
         query = query.where(exists().where(Stock.product_id == Product.id, Stock.qty_pieces > 0))
-    query = await apply_search(db, query, q)
+    query = await apply_search(db, query, q, ctx.tenant_id)
     if group_variants:
         query = collapse_variants(query)
 

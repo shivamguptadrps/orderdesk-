@@ -138,4 +138,4 @@ async def test_manage_endpoints_are_tenant_scoped(client, o):
 
 async def _first_cat(client, tenant, headers):
     cats = (await client.get(f"/t/{tenant.id}/categories", headers=headers)).json()
-    return next(c["id"] for c in cats if c["name"] == "Sugar")
+    return next(c["id"] for c in cats if c["name"].startswith("Sugar"))

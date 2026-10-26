@@ -186,6 +186,7 @@ def product_out(product: Product, stock_pieces: int) -> ProductOut:
         updated_at=product.updated_at,
         variant_group_id=product.variant_group_id,
         variant_label=product.variant_label,
+        brand_id=product.brand_id,
     )
 
 
@@ -193,7 +194,7 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-async def apply_search(db: AsyncSession, query: Select, q: str | None) -> Select:
+async def apply_search(db: AsyncSession, query: Select, q: str | None, tenant_id: uuid.UUID | None = None) -> Select:
     """Search name, brand and aliases in any script.
 
     1. Exact: every word typed appears somewhere (e.g. "sugar 1 kg").
@@ -203,6 +204,10 @@ async def apply_search(db: AsyncSession, query: Select, q: str | None) -> Select
     q = " ".join((q or "").lower().split())
     if not q:
         return query.order_by(Product.name)
+    if tenant_id is not None:  # "पंसारी" finds products of the brand Pansari
+        from app.modules.catalog.brands import expand_brand_words
+
+        q = await expand_brand_words(db, tenant_id, q)
     similarity = func.word_similarity(q, Product.search_text)
     exact = query.where(
         *[Product.search_text.like(f"%{_escape_like(word)}%", escape="\\") for word in q.split(" ")]

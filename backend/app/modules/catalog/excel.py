@@ -21,9 +21,10 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.catalog.brands import brand_key, brand_lookup, resolve_brand
 from app.modules.catalog.models import AttributeDefinition, Product, ProductUnit
 from app.modules.catalog.schemas import UnitIn
-from app.modules.catalog.service import validate_attributes
+from app.modules.catalog.service import refresh_search_words, validate_attributes
 from app.modules.inventory.models import Stock
 from app.modules.inventory.service import change_stock, stock_map
 
@@ -140,6 +141,7 @@ class ImportResult:
     created: int = 0
     updated: int = 0
     errors: list[dict] = field(default_factory=list)
+    new_brands: list[str] = field(default_factory=list)
 
 
 def _text(value: Any) -> str | None:
@@ -357,14 +359,24 @@ async def import_products(
         return result
     result.created = sum(1 for r in parsed if r.existing is None)
     result.updated = len(parsed) - result.created
+    lookup = await brand_lookup(db, tenant_id)
+    result.new_brands = sorted(
+        {" ".join(r.fields["brand"].split()) for r in parsed if r.fields.get("brand") and brand_key(r.fields["brand"]) not in lookup},
+        key=str.lower,
+    )
     if dry_run:
         return result
+    for r in parsed:  # same brand however it was typed
+        brand = await resolve_brand(db, tenant_id, r.fields.get("brand"), lookup)
+        r.fields["brand"] = brand.name if brand else None
+        r.fields["brand_id"] = brand.id if brand else None
 
     for r in parsed:
         if r.existing is None:
             await _create(db, tenant_id, category_id, r, user_id)
         else:
             await _update(db, tenant_id, category_id, r, user_id)
+    await refresh_search_words(db, tenant_id)
     await db.commit()
     return result
 

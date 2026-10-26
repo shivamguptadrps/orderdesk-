@@ -26,8 +26,12 @@ ATTRIBUTE_TYPES = ("text", "number", "select", "boolean")
 PRODUCT_STATUSES = ("active", "hidden")
 MAX_CATEGORY_DEPTH = 3
 
-# Lower-cased name + brand + aliases, kept up to date by Postgres. Trigram-indexed for fuzzy search.
-SEARCH_TEXT_SQL = "lower(name || ' ' || coalesce(brand, '') || ' ' || coalesce(search_aliases, ''))"
+# Everything search looks at, lower-cased and kept up to date by Postgres. Trigram-indexed for fuzzy search.
+# search_extra is filled by the app: the category names + their other names, and the brand's other spellings.
+SEARCH_TEXT_SQL = (
+    "lower(name || ' ' || coalesce(brand, '') || ' ' || coalesce(search_aliases, '') || ' ' || "
+    "coalesce(description, '') || ' ' || coalesce(search_extra, ''))"
+)
 
 
 class Category(UUIDPk, Timestamps, Base):
@@ -41,6 +45,7 @@ class Category(UUIDPk, Timestamps, Base):
     name: Mapped[str] = mapped_column(String(80))
     image_url: Mapped[str | None] = mapped_column(String(500))
     sort_order: Mapped[int] = mapped_column(default=0, server_default="0")
+    aliases: Mapped[str | None] = mapped_column(Text)  # other names for search: "chawal, चावल, basmati"
 
 
 class AttributeDefinition(UUIDPk, Timestamps, Base):
@@ -64,6 +69,18 @@ class AttributeDefinition(UUIDPk, Timestamps, Base):
     sort_order: Mapped[int] = mapped_column(default=0, server_default="0")
 
 
+class Brand(UUIDPk, Timestamps, Base):
+    """A brand of one distributor. Products point to it; `name_key` is the lower-cased name for matching."""
+
+    __tablename__ = "brands"
+    __table_args__ = (UniqueConstraint("tenant_id", "name_key"),)
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    name_key: Mapped[str] = mapped_column(String(100))
+    aliases: Mapped[str | None] = mapped_column(Text)  # other spellings, comma separated ("पंसारी, pansari group")
+
+
 class Product(UUIDPk, Timestamps, Base):
     __tablename__ = "products"
     __table_args__ = (
@@ -82,7 +99,8 @@ class Product(UUIDPk, Timestamps, Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"))
     name: Mapped[str] = mapped_column(String(200))
-    brand: Mapped[str | None] = mapped_column(String(100))
+    brand: Mapped[str | None] = mapped_column(String(100))  # always the brand's name (kept for search and old apps)
+    brand_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("brands.id", ondelete="SET NULL"), index=True)
     description: Mapped[str | None] = mapped_column(Text)
     search_aliases: Mapped[str | None] = mapped_column(Text)
     sku: Mapped[str | None] = mapped_column(String(64))
@@ -90,6 +108,7 @@ class Product(UUIDPk, Timestamps, Base):
     attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
     images: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
     status: Mapped[str] = mapped_column(String(10), default="active", server_default="active")
+    search_extra: Mapped[str | None] = mapped_column(Text)  # filled by catalog.service.refresh_search_words
     search_text: Mapped[str] = mapped_column(Text, Computed(SEARCH_TEXT_SQL, persisted=True))
     # Sizes of one product (Rice 1 kg / 5 kg) are separate products sharing a group id.
     # Each keeps its own price, stock and photos; shops see one card with a size picker.

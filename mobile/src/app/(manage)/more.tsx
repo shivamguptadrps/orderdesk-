@@ -98,6 +98,11 @@ export default function MoreScreen() {
           <ShortcutTile icon="alert-circle" tone="red" label="Low stock" badge={dash.data?.low_stock} onPress={() => router.push('/manage/stock')} style={styles.tile} />
           <ShortcutTile icon="images" tone="pink" label="Banners" onPress={() => router.push('/manage/banners')} style={styles.tile} />
           <ShortcutTile icon="folder-open" tone="amber" label="Categories" onPress={() => router.push('/manage/categories')} style={styles.tile} />
+          <ShortcutTile icon="pricetags" tone="purple" label="Brands" onPress={() => router.push('/manage/brands')} style={styles.tile} />
+          <ShortcutTile icon="cash" tone="green" label="Counter sale" onPress={() => router.push('/manage/counter')} style={styles.tile} />
+          <ShortcutTile icon="cloud-upload" tone="blue" label="Excel import" onPress={() => Alert.alert('Excel import', `On a computer, open:
+
+${importUrl}`, [{ text: 'OK' }, { text: 'Send link', onPress: () => void Share.share({ message: importUrl }) }])} style={styles.tile} />
         </View>
 
         <SectionHeader title="Settings" />

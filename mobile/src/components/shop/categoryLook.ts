@@ -3,14 +3,15 @@ import type Ionicons from '@expo/vector-icons/Ionicons';
 type Look = { icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string };
 
 const LOOKS: [RegExp, Look][] = [
-  [/stapl|grocer|atta|rice|dal|flour|grain/i, { icon: 'basket-outline', bg: '#FFF4E0', fg: '#B76E00' }],
+  [/ration|stapl|grocer|kirana|atta|rice|dal|flour|grain|poha/i, { icon: 'basket-outline', bg: '#FFF4E0', fg: '#B76E00' }],
   [/sugar|salt|spice|masala/i, { icon: 'cube-outline', bg: '#FFF4E0', fg: '#B76E00' }],
   [/oil|ghee/i, { icon: 'water-outline', bg: '#FFF8C5', fg: '#9A6700' }],
   [/snack|chip|namkeen|biscuit|cookie/i, { icon: 'fast-food-outline', bg: '#FFEBE9', fg: '#CF222E' }],
   [/beverage|drink|tea|coffee|juice/i, { icon: 'cafe-outline', bg: '#E8F0FE', fg: '#1557C0' }],
-  [/home|clean|detergent|wash/i, { icon: 'home-outline', bg: '#DAFBE1', fg: '#1A7F37' }],
-  [/personal|beauty|soap|shampoo|cosmetic/i, { icon: 'sparkles-outline', bg: '#FBEFFF', fg: '#8250DF' }],
+  [/home|clean|detergent|wash|safai/i, { icon: 'home-outline', bg: '#DAFBE1', fg: '#1A7F37' }],
+  [/personal|beauty|soap|shampoo|cosmetic|hair|teeth|skin/i, { icon: 'sparkles-outline', bg: '#FBEFFF', fg: '#8250DF' }],
   [/dairy|milk/i, { icon: 'nutrition-outline', bg: '#E8F0FE', fg: '#1557C0' }],
+  [/packet|pasta|noodle|mix|breakfast|ready/i, { icon: 'restaurant-outline', bg: '#FFEBE9', fg: '#BC4C00' }],
   [/baby|kid/i, { icon: 'happy-outline', bg: '#FBEFFF', fg: '#8250DF' }],
 ];
 

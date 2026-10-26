@@ -1,6 +1,8 @@
 """Distributor (owner/staff) catalog management under /t/{tenant_id}/..."""
 
+import re
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
@@ -20,7 +22,8 @@ from app.core.media import (
 )
 from app.core.tenancy import STAFF_ROLES, TenantContext, require_roles
 from app.modules.catalog import excel, related
-from app.modules.catalog.models import MAX_CATEGORY_DEPTH, AttributeDefinition, Category, Product, ProductUnit
+from app.modules.catalog.brands import resolve_brand, set_brand
+from app.modules.catalog.models import MAX_CATEGORY_DEPTH, AttributeDefinition, Brand, Category, Product, ProductUnit
 from app.modules.catalog.queries import (
     apply_search,
     count,
@@ -51,6 +54,7 @@ from app.modules.catalog.service import (
     effective_attributes,
     get_category_or_404,
     load_tree,
+    refresh_search_words,
     validate_attributes,
 )
 from app.modules.inventory.models import Stock
@@ -98,7 +102,7 @@ async def list_categories(ctx: TenantContext = Depends(_staff), db: AsyncSession
     return [
         CategoryOut(
             id=c.id, parent_id=c.parent_id, name=c.name, image_url=c.image_url, sort_order=c.sort_order,
-            attributes=by_cat.get(c.id, []), product_count=counts.get(c.id, 0),
+            aliases=c.aliases, attributes=by_cat.get(c.id, []), product_count=counts.get(c.id, 0),
         )
         for c in ordered
     ]
@@ -140,8 +144,9 @@ async def update_category(
         await _check_sibling_name(db, ctx.tenant_id, cat.parent_id, data["name"], exclude_id=cat.id)
         data["name"] = data["name"].strip()
     for field, value in data.items():
-        if value is not None or field == "image_url":
-            setattr(cat, field, value)
+        if value is not None or field in ("image_url", "aliases"):
+            setattr(cat, field, value.strip() or None if field == "aliases" and value else value)
+    await refresh_search_words(db, ctx.tenant_id)
     await db.commit()
     return CategoryOut.model_validate(cat)
 
@@ -304,6 +309,16 @@ def _default_pack_pieces():
     )
 
 
+async def _brand_for(db: AsyncSession, tenant_id: uuid.UUID, brand_id: uuid.UUID | None, text: str | None):
+    """The picked brand (must be ours), else the typed name matched to a brand or added as a new one."""
+    if brand_id:
+        brand = await db.scalar(select(Brand).where(Brand.id == brand_id, Brand.tenant_id == tenant_id))
+        if brand is None:
+            raise HTTPException(404, "Brand not found")
+        return brand
+    return await resolve_brand(db, tenant_id, text)
+
+
 def _sku_conflict() -> HTTPException:
     return HTTPException(409, "Another product already uses this SKU")
 
@@ -331,7 +346,7 @@ async def list_products(
         query = query.outerjoin(Stock, Stock.product_id == Product.id)
     if low_stock:
         query = query.where(Product.status == "active", func.coalesce(Stock.qty_pieces, 0) < 2 * _default_pack_pieces())
-    query = await apply_search(db, query, q)
+    query = await apply_search(db, query, q, ctx.tenant_id)
     if sort == "stock":
         query = query.order_by(None).order_by(func.coalesce(Stock.qty_pieces, 0), Product.name)
     total = await count(db, query)
@@ -344,10 +359,11 @@ async def list_products(
 async def create_product(body: ProductIn, ctx: TenantContext = Depends(_staff), db: AsyncSession = Depends(get_db)):
     await get_category_or_404(db, ctx.tenant_id, body.category_id)
     attrs = validate_attributes(await effective_attributes(db, ctx.tenant_id, body.category_id), body.attributes)
-    data = body.model_dump(exclude={"units", "attributes", "opening_stock_pieces"})
+    data = body.model_dump(exclude={"units", "attributes", "opening_stock_pieces", "brand_id", "brand"})
     data["sku"] = (data["sku"] or "").strip() or None
     data["variant_label"] = (data["variant_label"] or "").strip() or None
     product = Product(tenant_id=ctx.tenant_id, attributes=attrs, **data)
+    set_brand(product, await _brand_for(db, ctx.tenant_id, body.brand_id, body.brand))
     product.units = [ProductUnit(tenant_id=ctx.tenant_id, **u.model_dump()) for u in body.units]
     _ensure_one_default(product.units)
     db.add(product)
@@ -363,6 +379,7 @@ async def create_product(body: ProductIn, ctx: TenantContext = Depends(_staff), 
             db, tenant_id=ctx.tenant_id, product_id=product.id, change_pieces=body.opening_stock_pieces,
             reason="opening", user_id=ctx.user.id, note="Opening stock",
         )
+    await refresh_search_words(db, ctx.tenant_id)
     await db.commit()
     return product_out(product, body.opening_stock_pieces)
 
@@ -399,10 +416,15 @@ async def update_product(
         data["sku"] = (data["sku"] or "").strip() or None
     if "variant_label" in data:
         data["variant_label"] = (data["variant_label"] or "").strip() or None
+    if "brand_id" in body.model_fields_set or "brand" in body.model_fields_set:
+        set_brand(product, await _brand_for(db, ctx.tenant_id, body.brand_id, body.brand))
+    data.pop("brand", None)
+    data.pop("brand_id", None)
 
     for field, value in data.items():
         setattr(product, field, value)
     try:
+        await refresh_search_words(db, ctx.tenant_id)
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -462,6 +484,7 @@ async def add_size(
         category_id=source.category_id,
         name=body.name.strip(),
         brand=source.brand,
+        brand_id=source.brand_id,
         description=source.description,
         search_aliases=source.search_aliases,
         sku=(body.sku or "").strip() or None,
@@ -490,6 +513,7 @@ async def add_size(
             db, tenant_id=ctx.tenant_id, product_id=product.id, change_pieces=body.opening_stock_pieces,
             reason="opening", user_id=ctx.user.id, note="Opening stock",
         )
+    await refresh_search_words(db, ctx.tenant_id)
     await db.commit()
     product = await get_product_or_404(db, ctx.tenant_id, product.id)
     return await _product_with_sizes(db, product)
@@ -644,6 +668,7 @@ class ImportOut(BaseModel):
     updated: int
     errors: list[ImportRowError]
     saved: bool
+    new_brands: list[str] = []  # brand names in the sheet that don't exist yet (added when saved)
 
 
 @router.get("/t/{tenant_id}/product-import/template")
@@ -656,11 +681,14 @@ async def download_import_template(
     path = tree.path_names(category_id)
     defs = await effective_attributes(db, ctx.tenant_id, category_id, tree)
     content = excel.build_template(path, defs)
-    filename = "products-" + "-".join(p.lower().replace(" ", "_") for p in path) + ".xlsx"
+    # Headers must be plain ASCII: use the English part of "Rice / चावल" and give the full name as filename*.
+    readable = "products-" + "-".join(p.split(" / ")[0] for p in path)
+    ascii_name = re.sub(r"[^a-z0-9]+", "_", readable.lower()).strip("_") + ".xlsx"
+
     return Response(
         content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(readable + '.xlsx')}"},
     )
 
 
@@ -689,6 +717,7 @@ async def import_products(
         updated=result.updated,
         errors=[ImportRowError(**e) for e in result.errors],
         saved=not dry_run and not result.errors,
+        new_brands=result.new_brands,
     )
 
 

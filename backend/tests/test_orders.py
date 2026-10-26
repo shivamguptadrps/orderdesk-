@@ -154,7 +154,7 @@ async def test_order_numbers_are_per_distributor(client, o, make_shop):
     headers, shop = await make_shop("9123456789")
     await client.post("/shops/me/distributors", json={"join_code": "VERMA8"}, headers=headers)
     await client.post(f"/t/{b.id}/shops/{shop['id']}/approve", headers=o["owner_b"])
-    cats = {c["name"]: c["id"] for c in (await client.get(f"/t/{b.id}/categories", headers=o["owner_b"])).json()}
+    cats = {c["name"].split(" / ")[0]: c["id"] for c in (await client.get(f"/t/{b.id}/categories", headers=o["owner_b"])).json()}
     p = (await client.post(f"/t/{b.id}/products", json=sugar(cats["Sugar"]), headers=o["owner_b"])).json()
     await client.post(f"/t/{b.id}/cart/items", json={"unit_id": p["units"][1]["id"], "qty": 1}, headers=headers)
     res = await client.post(f"/t/{b.id}/orders", json={}, headers=headers)
@@ -402,7 +402,7 @@ async def test_other_distributor_cannot_touch_orders(client, o):
     assert (await client.get(f"/shops/me/orders/{oid}", headers=owner_b)).status_code == 404  # B owner has no shop
 
     # A shop can't put B's products in A's cart
-    cats = {c["name"]: c["id"] for c in (await client.get(f"/t/{b.id}/categories", headers=owner_b)).json()}
+    cats = {c["name"].split(" / ")[0]: c["id"] for c in (await client.get(f"/t/{b.id}/categories", headers=owner_b)).json()}
     pb = (await client.post(f"/t/{b.id}/products", json=sugar(cats["Sugar"]), headers=owner_b)).json()
     res = await client.post(f"/t/{a.id}/cart/items", json={"unit_id": pb["units"][0]["id"], "qty": 2}, headers=o["shop"])
     assert res.status_code == 404

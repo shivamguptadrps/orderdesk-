@@ -141,7 +141,7 @@ async def test_related_is_tenant_isolated(client, rel):
         assert res.status_code == 404, (path, res.status_code)
     # another tenant's product id inside my tenant: 404
     b_cats = (await client.get(f"/t/{rel['b'].id}/categories", headers=other)).json()
-    b_sugar = next(c["id"] for c in b_cats if c["name"] == "Sugar")
+    b_sugar = next(c["id"] for c in b_cats if c["name"].startswith("Sugar"))
     res = await client.post(f"/t/{rel['b'].id}/products", json=sugar(b_sugar), headers=other)
     b_product = res.json()["id"]
     assert (await client.put(f"{t}/products/{s['id']}/related/{b_product}", headers=rel["owner"])).status_code == 404

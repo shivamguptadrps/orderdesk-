@@ -26,6 +26,7 @@ from app.modules.notifications.router import router as notifications_router
 from app.modules.orders.router import router as orders_router
 from app.modules.platform.router import router as platform_router
 from app.modules.reports.router import router as reports_router
+from app.modules.catalog.brands import router as brands_router
 from app.modules.shops.router import router as shops_router
 from app.modules.tenants.router import router as tenants_router
 
@@ -74,6 +75,7 @@ app.include_router(inventory_router)
 app.include_router(orders_router)
 app.include_router(notifications_router)
 app.include_router(reports_router)
+app.include_router(brands_router)
 app.include_router(platform_router)
 app.mount(settings.media_url_prefix, StaticFiles(directory=media_root()), name="media")
 

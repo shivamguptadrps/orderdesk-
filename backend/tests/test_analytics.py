@@ -34,7 +34,7 @@ async def test_report_analytics(client, ag):  # noqa: F811
     assert r["value"] == 2580 + 1290 and r["prev_value"] == 0 and r["prev_orders"] == 0
     assert [(c["source"], c["orders"], c["value"]) for c in r["channels"]] == [("agent", 1, 2580.0), ("counter", 1, 1290.0)]
     assert r["payments"] == {"paid_value": 1290.0, "unpaid_value": 2580.0, "unpaid_orders": 1}
-    assert [(c["name"], c["value"]) for c in r["top_categories"]] == [("Staples", 3870.0)]
+    assert [(c["name"], c["value"]) for c in r["top_categories"]] == [("Ration / राशन", 3870.0)]
     assert sum(h["orders"] for h in r["by_hour"]) == 2 and all(0 <= h["hour"] <= 23 for h in r["by_hour"])
 
     agents = {a["name"]: a for a in r["agents"]}

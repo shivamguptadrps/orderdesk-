@@ -72,6 +72,7 @@ class EffectiveAttributeOut(AttributeOut):
 
 class CategoryIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
+    aliases: str | None = Field(default=None, max_length=1000, examples=["chawal, चावल, basmati"])
     parent_id: uuid.UUID | None = None
     image_url: str | None = Field(default=None, max_length=500)
     sort_order: int = 0
@@ -79,6 +80,7 @@ class CategoryIn(BaseModel):
 
 class CategoryUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
+    aliases: str | None = Field(default=None, max_length=1000)
     image_url: str | None = Field(default=None, max_length=500)
     sort_order: int | None = None
 
@@ -91,6 +93,7 @@ class CategoryOut(BaseModel):
     name: str
     image_url: str | None
     sort_order: int
+    aliases: str | None = None  # other names search understands
     attributes: list[AttributeOut] = []  # own features only
     product_count: int = 0  # products directly in this category (not in its sub-categories)
 
@@ -172,6 +175,7 @@ class ProductIn(BaseModel):
     units: list[UnitIn] = Field(min_length=1)
     opening_stock_pieces: int = Field(default=0, ge=0)
     variant_label: str | None = Field(default=None, max_length=40, examples=["5 kg"])
+    brand_id: uuid.UUID | None = Field(default=None, description="Pick from /brands; or send `brand` text and it is matched or added")
 
     @model_validator(mode="after")
     def _unit_names_unique(self):
@@ -195,6 +199,7 @@ class ProductUpdate(BaseModel):
     images: list[Annotated[str, Field(max_length=500)]] | None = Field(default=None, max_length=10)
     status: Literal["active", "hidden"] | None = None
     variant_label: str | None = Field(default=None, max_length=40)
+    brand_id: uuid.UUID | None = None
 
 
 class SizeOut(BaseModel):
@@ -252,6 +257,7 @@ class ProductOut(BaseModel):
     updated_at: datetime
     variant_group_id: uuid.UUID | None = None
     variant_label: str | None = None
+    brand_id: uuid.UUID | None = None
     sizes: list[SizeOut] = []  # other sizes in the group (only on single-product responses)
 
 

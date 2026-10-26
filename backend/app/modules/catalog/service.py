@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.catalog.models import AttributeDefinition, Category
@@ -131,3 +131,31 @@ def validate_attributes(defs: list[AttributeDefinition], values: dict[str, Any])
     if errors:
         raise HTTPException(422, "; ".join(errors))
     return clean
+
+
+_SEARCH_WORDS_SQL = text("""
+WITH RECURSIVE chain AS (
+    SELECT id AS leaf, parent_id, name, aliases FROM categories WHERE tenant_id = :tenant
+    UNION ALL
+    SELECT chain.leaf, c.parent_id, c.name, c.aliases FROM chain JOIN categories c ON c.id = chain.parent_id
+),
+words AS (
+    SELECT leaf, string_agg(name || ' ' || coalesce(aliases, ''), ' ') AS w FROM chain GROUP BY leaf
+),
+wanted AS (
+    SELECT p.id, nullif(trim(coalesce(words.w, '') || ' ' || coalesce(b.aliases, '')), '') AS v
+    FROM products p
+    LEFT JOIN words ON words.leaf = p.category_id
+    LEFT JOIN brands b ON b.id = p.brand_id
+    WHERE p.tenant_id = :tenant
+)
+UPDATE products p SET search_extra = wanted.v
+FROM wanted WHERE p.id = wanted.id AND p.search_extra IS DISTINCT FROM wanted.v
+""")
+
+
+async def refresh_search_words(db: AsyncSession, tenant_id: uuid.UUID) -> None:
+    """Copy each product's category names (with their other names) and brand spellings into its
+    search words, so "chawal" or "चीनी" finds products whose own name doesn't say it.
+    Cheap: only rows that changed are written. Call after changing products, categories or brands."""
+    await db.execute(_SEARCH_WORDS_SQL, {"tenant": tenant_id})

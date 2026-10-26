@@ -18,7 +18,7 @@ async def _create(client, c, body):
 
 async def test_fmcg_template_loaded(client, cat):
     ids = cat["ids"]
-    for name in ["Staples", "Sugar", "Rice", "Atta", "Oil", "Snacks", "Chips", "Biscuits", "Beverages"]:
+    for name in ["Ration", "Sugar", "Rice", "Atta & Flour", "Oil", "Snacks", "Chips", "Biscuits", "Drinks"]:
         assert name in ids
 
     a, owner = cat["a"], cat["owner"]
@@ -122,8 +122,8 @@ async def test_search_other_products(client, cat, products):
 
 async def test_category_and_attribute_filters(client, cat, products):
     ids = cat["ids"]
-    staples = await _search(client, cat, category_id=ids["Staples"])
-    assert len(staples) == 4  # includes sub-categories
+    staples = await _search(client, cat, category_id=ids["Ration"])
+    assert len(staples) == 3  # includes sub-categories (oil is under Oil & Ghee)
 
     assert await _search(client, cat, category_id=ids["Sugar"], filters=json.dumps({"grain": "bold"})) == ["Madhur Sugar 5 kg"]
     assert await _search(client, cat, filters=json.dumps({"weight_kg": "1"})) == ["Madhur Sugar 1 kg"]
@@ -151,7 +151,7 @@ async def test_catalog_card_and_detail(client, cat, products):
     assert card["default_unit"]["name"] == "Bag" and card["in_stock"] is True
 
     detail = (await client.get(f"/t/{a.id}/catalog/products/{products['s1']['id']}", headers=cat["shop"])).json()
-    assert detail["category_path"] == ["Staples", "Sugar"]
+    assert detail["category_path"] == ["Ration / राशन", "Sugar / चीनी"]
     assert detail["features"] == [
         {"key": "weight_kg", "label": "Pack weight", "value": 1, "unit": "kg"},
         {"key": "grain", "label": "Grain", "value": "Medium", "unit": None},
@@ -159,8 +159,8 @@ async def test_catalog_card_and_detail(client, cat, products):
     assert {u["name"]: u["in_stock"] for u in detail["units"]} == {"Packet": True, "Bag": True}
 
     tree = (await client.get(f"/t/{a.id}/catalog/categories", headers=cat["shop"])).json()
-    staples = next(n for n in tree if n["name"] == "Staples")
-    assert [c["name"] for c in staples["children"]] == ["Sugar", "Rice", "Atta", "Oil"]
+    staples = next(n for n in tree if n["name"].startswith("Ration"))
+    assert [c["name"].split(" / ")[0] for c in staples["children"]] == ["Rice", "Atta & Flour", "Dal", "Sugar", "Poha & Daliya", "Salt & Gud"]
 
 
 async def test_hidden_products_not_in_catalog(client, cat, products):
@@ -253,10 +253,10 @@ async def test_category_crud_and_rules(client, cat):
     a, owner, ids = cat["a"], cat["owner"], cat["ids"]
     url = f"/t/{a.id}/categories"
 
-    res = await client.post(url, json={"name": "Dal", "parent_id": ids["Staples"]}, headers=owner)
+    res = await client.post(url, json={"name": "Dal", "parent_id": ids["Ration"]}, headers=owner)
     assert res.status_code == 201
     dal = res.json()["id"]
-    assert (await client.post(url, json={"name": " dal ", "parent_id": ids["Staples"]}, headers=owner)).status_code == 409
+    assert (await client.post(url, json={"name": " dal ", "parent_id": ids["Ration"]}, headers=owner)).status_code == 409
 
     lvl3 = (await client.post(url, json={"name": "Toor", "parent_id": dal}, headers=owner)).json()["id"]
     assert (await client.post(url, json={"name": "Too deep", "parent_id": lvl3}, headers=owner)).status_code == 400
@@ -332,8 +332,8 @@ async def test_other_tenant_cannot_touch_catalog(client, cat, products):
 
     # A's categories can't be used in B
     assert (await client.post(f"/t/{b.id}/products", json=sugar(ids["Sugar"]), headers=owner_b)).status_code == 404
-    assert (await client.post(f"/t/{b.id}/categories", json={"name": "X", "parent_id": ids["Staples"]}, headers=owner_b)).status_code == 404
-    assert (await client.delete(f"/t/{b.id}/categories/{ids['Atta']}", headers=owner_b)).status_code == 404
+    assert (await client.post(f"/t/{b.id}/categories", json={"name": "X", "parent_id": ids["Ration"]}, headers=owner_b)).status_code == 404
+    assert (await client.delete(f"/t/{b.id}/categories/{ids['Atta & Flour']}", headers=owner_b)).status_code == 404
     attr = (await client.get(f"/t/{a.id}/categories/{ids['Sugar']}/attributes", headers=cat["owner"])).json()[0]
     assert (await client.delete(f"/t/{b.id}/attributes/{attr['id']}", headers=owner_b)).status_code == 404
 
@@ -348,6 +348,6 @@ async def test_other_tenant_cannot_touch_catalog(client, cat, products):
 async def test_exact_matches_beat_fuzzy_ones(client, cat, products):
     """'chawal' must not pull in products that merely start with 'cha' (chai, chakki...)."""
     ids = cat["ids"]
-    await _create(client, cat, sugar(ids["Beverages"], name="Chai Bahar Tea", brand="Chai Bahar", sku="TEA", search_aliases="chai patti", attributes={}))
+    await _create(client, cat, sugar(ids["Drinks"], name="Chai Bahar Tea", brand="Chai Bahar", sku="TEA", search_aliases="chai patti", attributes={}))
     assert await _search(client, cat, q="chawal") == ["India Gate Basmati Rice 5 kg"]
     assert await _search(client, cat, q="sugar 5 kg") == ["Madhur Sugar 5 kg"]

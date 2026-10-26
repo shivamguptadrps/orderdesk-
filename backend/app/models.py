@@ -1,7 +1,7 @@
 """Imports every model so Base.metadata is complete (used by Alembic and tests)."""
 
 from app.modules.auth.models import OtpRequest, RefreshToken, User  # noqa: F401
-from app.modules.catalog.models import AttributeDefinition, Banner, Category, Product, ProductRelation, ProductUnit  # noqa: F401
+from app.modules.catalog.models import AttributeDefinition, Banner, Brand, Category, Product, ProductRelation, ProductUnit  # noqa: F401
 from app.modules.inventory.models import Stock, StockLedger  # noqa: F401
 from app.modules.notifications.models import PushToken  # noqa: F401
 from app.modules.orders.models import Cart, CartItem, Order, OrderEvent, OrderItem  # noqa: F401

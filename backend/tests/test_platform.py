@@ -37,7 +37,7 @@ async def test_admin_adds_and_lists_distributors(client, login, admin_on):
     assert me["memberships"] == [{"tenant_id": t["id"], "tenant_name": "Gupta Traders", "role": "owner"}]
     assert me["is_platform_admin"] is False
     cats = (await client.get(f"/t/{t['id']}/categories", headers=owner)).json()
-    assert any(c["name"] == "Sugar" for c in cats)
+    assert any(c["name"].startswith("Sugar") for c in cats)
 
     # random code when none given; duplicate code refused
     other = (await client.post("/admin/tenants", json={"name": "Verma Agencies", "owner_phone": "9123456781"}, headers=key(h))).json()

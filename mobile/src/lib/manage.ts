@@ -55,7 +55,7 @@ export function useRefreshManage() {
   const qc = useQueryClient();
   return () =>
     Promise.all(
-      ['dashboard', 'morders', 'order', 'mproducts', 'mproduct', 'mshops', 'members', 'tenant', 'ledger', 'products', 'product', 'mcategories', 'mattrs', 'categories', 'myDistributors', 'me'].map(
+      ['dashboard', 'morders', 'order', 'mproducts', 'mproduct', 'mshops', 'members', 'tenant', 'ledger', 'products', 'product', 'mcategories', 'mattrs', 'categories', 'myDistributors', 'me', 'mbrands', 'shopBrands'].map(
         (key) => qc.invalidateQueries({ queryKey: [key] }),
       ),
     );
