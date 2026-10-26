@@ -92,7 +92,8 @@ function BrandSheet({
             <Ionicons name="search" size={18} color={colors.muted} />
             <TextInput value={q} onChangeText={setQ} placeholder="Search or type a new brand" placeholderTextColor={colors.faint} style={styles.searchInput} autoFocus />
           </View>
-          {q.trim() && !exact ? (
+          {/* Nothing similar: offer "Add" first. Similar brands exist: list them first, "Add" goes below. */}
+          {q.trim() && !exact && list.length === 0 ? (
             <Pressable onPress={add} disabled={adding} style={styles.addRow}>
               {adding ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="add-circle" size={22} color={colors.primary} />}
               <Text style={styles.addText}>Add new brand “{q.trim()}”</Text>
@@ -107,6 +108,14 @@ function BrandSheet({
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingHorizontal: space.lg, paddingBottom: 40 }}
               ListEmptyComponent={!q ? <Text style={styles.empty}>No brands yet. Type a name to add one.</Text> : undefined}
+              ListFooterComponent={
+                q.trim() && !exact && list.length > 0 ? (
+                  <Pressable onPress={add} disabled={adding} style={[styles.row, styles.border]}>
+                    {adding ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="add-circle-outline" size={20} color={colors.muted} />}
+                    <Text style={[styles.meta, { fontSize: 14 }]}>None of these? Add new brand “{q.trim()}”</Text>
+                  </Pressable>
+                ) : undefined
+              }
               renderItem={({ item, index }) => (
                 <Pressable onPress={() => onPick({ id: item.id, name: item.name })} style={[styles.row, index > 0 && styles.border]}>
                   <View style={{ flex: 1 }}>
