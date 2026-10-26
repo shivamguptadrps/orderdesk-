@@ -23,6 +23,8 @@ import { gridColumns, mediaUrl, saving } from '@/lib/format';
 import { colors, radius, space } from '@/lib/theme';
 import type { Banner, CatalogCard, CategoryNode, Page, ShopBrand } from '@/lib/types';
 
+const CAT_ROW_MAX = 8; // top categories on the home row; the rest are one tap away under More
+
 export default function Home() {
   const ws = useWorkspace();
   const router = useRouter();
@@ -176,11 +178,8 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
         .map((d) => d.p),
     [products.data],
   );
-  // 4 per row; up to 5 categories fit in one row so none is left alone on a second line.
-  const catCount = categories.data?.length ?? 0;
-  const perRow = catCount === 5 ? 5 : 4;
   const cols = gridColumns(Math.min(width, 1080) - space.lg * 2);
-  const tileW = (Math.min(width, 700) - space.lg * 2 - 10 * (perRow - 1)) / perRow;
+  const topCats = (categories.data ?? []).slice(0, CAT_ROW_MAX);
 
   const refresh = () => {
     void products.refetch();
@@ -203,36 +202,55 @@ function Feed({ ws, q }: { ws: Workspace; q: string }) {
       {(categories.data ?? []).length > 0 && (
         <View style={styles.section}>
           <SectionHead title="Shop by category" />
-          <View style={styles.catGrid}>
-            {(categories.data ?? []).map((c, i) => {
+          {/* One sliding row of small tiles; "More" opens the full category browser. */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+            {topCats.map((c, i) => {
               const look = categoryLook(c.name, i);
+              const [main, hindi] = c.name.split(' / ');
               return (
                 <Pressable
                   key={c.id}
                   onPress={() => router.push(`/category/${c.id}`)}
-                  style={({ pressed }) => [{ width: tileW }, pressed && { opacity: 0.8 }]}
-                  accessibilityRole="button">
-                  <View style={[styles.catIcon, { backgroundColor: look.bg, height: tileW }]}>
+                  style={({ pressed }) => [styles.catTile, pressed && { opacity: 0.8 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={c.name}>
+                  <View style={[styles.catIcon, { backgroundColor: look.bg }]}>
                     {c.image_url ? (
                       <Image source={{ uri: mediaUrl(c.image_url) }} style={StyleSheet.absoluteFill} contentFit="cover" />
                     ) : (
-                      <Ionicons name={look.icon} size={Math.min(tileW * 0.42, 34)} color={look.fg} />
+                      <Ionicons name={look.icon} size={24} color={look.fg} />
                     )}
                   </View>
-                  <Text style={styles.catName} numberOfLines={2}>
-                    {c.name}
+                  <Text style={styles.catName} numberOfLines={1}>
+                    {main}
                   </Text>
+                  {hindi ? (
+                    <Text style={styles.catHindi} numberOfLines={1}>
+                      {hindi}
+                    </Text>
+                  ) : null}
                 </Pressable>
               );
             })}
-          </View>
+            <Pressable
+              onPress={() => router.push(`/category/${(categories.data ?? [])[0].id}`)}
+              style={({ pressed }) => [styles.catTile, pressed && { opacity: 0.8 }]}
+              accessibilityRole="button"
+              accessibilityLabel="All categories">
+              <View style={[styles.catIcon, styles.catMore]}>
+                <Ionicons name="grid-outline" size={22} color={colors.primary} />
+              </View>
+              <Text style={[styles.catName, { color: colors.primary }]}>More</Text>
+              <Text style={styles.catHindi}>सभी</Text>
+            </Pressable>
+          </ScrollView>
         </View>
       )}
 
       {(brands.data ?? []).length > 1 && (
         <View style={styles.section}>
           <SectionHead title="Shop by brand" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: space.lg }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: space.lg }}>
             {(brands.data ?? []).map((b, i) => {
               const look = categoryLook(b.name, i + 3);
               return (
@@ -382,8 +400,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
   sectionRight: { fontSize: 13, color: colors.muted },
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, rowGap: space.md, paddingHorizontal: space.lg },
-  catIcon: { borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  catName: { fontSize: 12, fontWeight: '600', color: colors.text, textAlign: 'center', marginTop: 6, lineHeight: 15 },
+  catRow: { gap: 6, paddingHorizontal: space.lg },
+  catTile: { width: 72, alignItems: 'center' },
+  catIcon: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  catMore: { backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed' },
+  catName: { fontSize: 12, fontWeight: '700', color: colors.text, textAlign: 'center', marginTop: 6, lineHeight: 15 },
+  catHindi: { fontSize: 11, color: colors.muted, textAlign: 'center', lineHeight: 14 },
   stripWrap: { paddingLeft: space.lg, marginTop: space.sm },
 });
