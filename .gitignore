@@ -27,3 +27,8 @@ backend/uploads/
 Thumbs.db
 .vscode/
 .idea/
+
+# Real business data (Tally exports etc.) never goes to the public repo
+/*.xlsx
+/*.xls
+/*.csv
