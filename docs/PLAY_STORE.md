@@ -2,19 +2,18 @@
 
 Everything needed for the Play Console, in the order you'll meet it. Images are in `docs/play-store/`.
 
-## Status
+## Status (27 Oct 2026)
 
 | Item | State |
 | --- | --- |
-| Developer account | Registered; identity verification pending (applied 25 Oct 2026) |
-| Account deletion (in app + web page) | Done: Profile / More › *Delete my account*; https://orderdesk.kamkarao.com/delete-account |
-| Privacy policy | Done: https://orderdesk.kamkarao.com/privacy |
-| Reviewer login (fixed code, no WhatsApp) | Done in code; set `REVIEW_PHONE` / `REVIEW_CODE` on the server |
-| App icon, feature graphic, 8 screenshots | Done (`docs/play-store/`) |
-| Store build (.aab, version numbers count up by themselves) | Done: `eas build -p android --profile production` |
-| Unused Android permissions removed | Done (microphone, overlay, fingerprint, old storage) |
-| **WhatsApp OTP live** | **To do** (needs Meta setup, see below). The server must stop showing the code on screen before public release |
-| Closed test, 12 testers for 14 days | After verification |
+| Developer account | Verified |
+| App created | `in.orderdesk.app`, "OrderDesk: Distributor Orders", Business, free |
+| App content forms | All done (privacy, sign-in details, ads: no, rating 3+ with "shares location", 18+, data safety, government/financial/health: none, advertising ID: no) |
+| Store listing | Done (texts, icon, feature graphic, 8 screenshots); support email on the listing and on /privacy and /delete-account (SUPPORT_EMAIL) |
+| Reviewer login | REVIEW_PHONE / REVIEW_CODE in the server .env (never in git) -> a demo shop joined to KPG, also staff of KPG |
+| Closed testing - Alpha | Release 1.0.0 (version code 2, .aab from EAS production) sent for review 27 Oct 2026; India; first 2 testers |
+| Next | Approval -> copy "Join on the web" link -> get 12 testers opted in -> 14 days -> apply for production |
+| Before production | WhatsApp OTP live (APP_ENV=prod, OTP_MODE=whatsapp) |
 
 ## 1. Before the first upload
 
